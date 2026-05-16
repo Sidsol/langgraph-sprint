@@ -1,7 +1,16 @@
-"""Tool adapter export surface for live and offline implementations.
+from .calculator import safe_calc
+from .llm import Chat, OpenAIChat, StubChat, make_chat
+from .searcher import FakeSearcher, SearchResult, Searcher, TavilySearcher, make_searcher
 
-Reference: crispy-docs/projects/001-langgraph-week6-labs/architecture.md §3, §11
-Implementation deferred to feature-level CRISPY runs.
-"""
-
-# TODO: implement per architecture §11
+__all__ = [
+    "Chat",
+    "FakeSearcher",
+    "OpenAIChat",
+    "SearchResult",
+    "Searcher",
+    "StubChat",
+    "TavilySearcher",
+    "make_chat",
+    "make_searcher",
+    "safe_calc",
+]

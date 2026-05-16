@@ -1,7 +1,74 @@
-"""Chat adapter placeholder for OpenAI and stub implementations.
+from __future__ import annotations
 
-Reference: crispy-docs/projects/001-langgraph-week6-labs/architecture.md §5, §11
-Implementation deferred to feature-level CRISPY runs.
-"""
+import os
+from typing import Any, Protocol, runtime_checkable
 
-# TODO: implement per architecture §5 and §11
+
+@runtime_checkable
+class Chat(Protocol):
+    def complete(self, prompt: str, *, system: str | None = None, max_tokens: int = 512) -> str: ...
+
+
+class OpenAIChat:
+    def __init__(self, model: str | None = None) -> None:
+        try:
+            from langchain_openai import ChatOpenAI
+        except ImportError as exc:
+            raise RuntimeError("langchain-openai is required for OpenAIChat") from exc
+
+        self._model = model or os.environ.get("OPENAI_MODEL", "gpt-5.4")
+        self._client = ChatOpenAI(model=self._model)
+
+    def complete(self, prompt: str, *, system: str | None = None, max_tokens: int = 512) -> str:
+        try:
+            from langchain_core.messages import HumanMessage, SystemMessage
+        except ImportError as exc:
+            raise RuntimeError("langchain-core is required for OpenAIChat") from exc
+
+        messages: list[object] = []
+        if system:
+            messages.append(SystemMessage(content=system))
+        messages.append(HumanMessage(content=prompt))
+
+        try:
+            response = self._client.invoke(messages, max_tokens=max_tokens)
+        except Exception as exc:
+            raise RuntimeError(f"OpenAI chat failed: {exc}") from exc
+
+        return _stringify_content(getattr(response, "content", response))
+
+
+class StubChat:
+    def complete(self, prompt: str, *, system: str | None = None, max_tokens: int = 512) -> str:
+        del system, max_tokens
+        return f"[STUB] {prompt[:80]}"
+
+
+def _stringify_content(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict) and "text" in item:
+                parts.append(str(item["text"]))
+            else:
+                parts.append(str(item))
+        return "".join(parts)
+
+    return str(content)
+
+
+def make_chat(mode: str) -> Chat:
+    normalized_mode = mode.lower()
+    if normalized_mode == "offline":
+        return StubChat()
+    if normalized_mode == "live":
+        return OpenAIChat(model=os.environ.get("OPENAI_MODEL", "gpt-5.4"))
+    raise ValueError(f"unsupported mode: {mode}")
+
+
+__all__ = ["Chat", "OpenAIChat", "StubChat", "make_chat"]
