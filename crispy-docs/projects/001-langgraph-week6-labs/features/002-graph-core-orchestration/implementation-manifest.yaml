@@ -1,5 +1,44 @@
-# Implementation manifest — populated by crispy-yield after all feature phases complete
 feature: 002-graph-core-orchestration
 project: 001-langgraph-week6-labs
-status: not-started
-ready: false
+status: complete
+ready: true
+files_implemented:
+  - src/agent/__init__.py
+  - src/agent/graph.py
+  - src/agent/nodes/__init__.py
+  - src/agent/nodes/planner.py
+  - src/agent/nodes/search_tool.py
+  - src/agent/nodes/calculator_tool.py
+  - src/agent/nodes/evaluator.py
+  - src/agent/subgraphs/__init__.py
+  - src/agent/subgraphs/citation_verifier.py
+  - tests/test_graph_wiring.py
+  - crispy-docs/projects/001-langgraph-week6-labs/features/002-graph-core-orchestration/spec.md
+  - crispy-docs/projects/001-langgraph-week6-labs/features/002-graph-core-orchestration/implementation-manifest.yaml
+tests_added:
+  - tests/test_graph_wiring.py
+tests_passing:
+  count: 11
+  suites:
+    - uv run pytest tests/test_001_foundation.py tests/test_graph_wiring.py -v
+    - uv run pytest -q
+verification:
+  uv_sync:
+    command: uv sync
+    exit_code: 0
+  graph_nodes:
+    command: uv run python -c "from agent import build_graph; g = build_graph(mode='offline'); print(list(g.get_graph().nodes))"
+    exit_code: 0
+  offline_smoke:
+    command: uv run python -c "from agent import build_graph, make_initial_state; g = build_graph(mode='offline'); cfg = {'configurable': {'thread_id': 't-smoke-002'}}; result = g.invoke(make_initial_state('What is 12*12?', 't-smoke-002', 'offline'), cfg); print('draft:', result.get('draft_answer'))"
+    exit_code: 0
+    observed_draft_answer: "12*12 = 144"
+  targeted_pytest:
+    command: uv run pytest tests/test_001_foundation.py tests/test_graph_wiring.py -v
+    exit_code: 0
+    passed_tests: 11
+  full_pytest:
+    command: uv run pytest -q
+    exit_code: 0
+    passed_tests: 11
+next_feature: 003-routing-and-retry-loop

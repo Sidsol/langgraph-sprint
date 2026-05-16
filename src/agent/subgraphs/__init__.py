@@ -1,7 +1,3 @@
-"""Subgraph package export surface.
+from .citation_verifier import citation_verifier as citation_verifier_subgraph
 
-Reference: crispy-docs/projects/001-langgraph-week6-labs/architecture.md §3, §5
-Implementation deferred to feature-level CRISPY runs.
-"""
-
-# TODO: implement per architecture §5
+__all__ = ["citation_verifier_subgraph"]
