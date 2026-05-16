@@ -1,5 +1,51 @@
-# Implementation manifest — populated by crispy-yield after all feature phases complete
 feature: 003-routing-and-retry-loop
 project: 001-langgraph-week6-labs
-status: not-started
-ready: false
+status: complete
+ready: true
+files_implemented:
+  - src/agent/routers.py
+  - src/agent/graph.py
+  - src/agent/nodes/planner.py
+  - src/agent/nodes/evaluator.py
+  - src/agent/nodes/fallback.py
+  - src/agent/nodes/escalate_to_human.py
+  - src/agent/subgraphs/citation_verifier.py
+  - tests/test_routers.py
+  - tests/test_e2e_offline.py
+  - crispy-docs/projects/001-langgraph-week6-labs/features/003-routing-and-retry-loop/spec.md
+  - crispy-docs/projects/001-langgraph-week6-labs/features/003-routing-and-retry-loop/implementation-manifest.yaml
+tests_added:
+  - tests/test_routers.py
+  - tests/test_e2e_offline.py
+tests_passing:
+  count: 21
+  suites:
+    - uv run pytest tests/test_routers.py -v
+    - uv run pytest tests/test_e2e_offline.py -v
+    - uv run pytest -q
+verification:
+  uv_sync:
+    command: uv sync
+    exit_code: 0
+  offline_smoke_pass:
+    command: uv run python -c "from agent import build_graph, make_initial_state; g = build_graph(mode='offline'); cfg = {'configurable': {'thread_id': 't-smoke-003a'}}; r = g.invoke(make_initial_state('What is 2+3?', 't-smoke-003a', 'offline'), cfg); print('pass:', r.get('draft_answer'))"
+    exit_code: 0
+    observed_draft_answer: "2+3 = 5"
+  offline_smoke_retry:
+    command: uv run python -c "from agent import build_graph, make_initial_state; g = build_graph(mode='offline'); cfg = {'configurable': {'thread_id': 't-smoke-003b'}}; r = g.invoke(make_initial_state('FORCE_RETRY tell me about LangGraph', 't-smoke-003b', 'offline'), cfg); print('attempts:', r.get('attempt'), 'retry_log:', r.get('retry_log'))"
+    exit_code: 0
+    observed_attempt: 2
+    observed_retry_log_entries: 1
+  targeted_routers:
+    command: uv run pytest tests/test_routers.py -v
+    exit_code: 0
+    passed_tests: 6
+  targeted_e2e:
+    command: uv run pytest tests/test_e2e_offline.py -v
+    exit_code: 0
+    passed_tests: 4
+  full_pytest:
+    command: uv run pytest -q
+    exit_code: 0
+    passed_tests: 21
+next_feature: 005-cli-hitl-publisher
