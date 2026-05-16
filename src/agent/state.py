@@ -72,6 +72,9 @@ class AgentState(TypedDict):
     evaluator_verdict: EvaluatorVerdict | None
     evaluator_history: Annotated[list[EvaluatorVerdict], add]
     citation_verdict: CitationVerdict | None
+    _verifier_claims: list[str] | None
+    _verifier_scores: list[float] | None
+    _verifier_notes: list[str] | None
     attempt: int
     max_attempts: int
     retry_log: Annotated[list[RetryLogEntry], add]   # structured: {attempt, reason, mitigation}
@@ -99,6 +102,9 @@ def initial_state(question: str, thread_id: str, mode: Literal["live", "offline"
         "evaluator_verdict": None,
         "evaluator_history": [],
         "citation_verdict": None,
+        "_verifier_claims": None,
+        "_verifier_scores": None,
+        "_verifier_notes": None,
         "attempt": 0,
         "max_attempts": 2,
         "retry_log": [],

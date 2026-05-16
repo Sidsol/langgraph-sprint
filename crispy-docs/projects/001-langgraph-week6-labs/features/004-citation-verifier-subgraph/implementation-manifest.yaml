@@ -1,5 +1,63 @@
-# Implementation manifest — populated by crispy-yield after all feature phases complete
 feature: 004-citation-verifier-subgraph
 project: 001-langgraph-week6-labs
-status: not-started
-ready: false
+status: complete
+ready: true
+files_implemented:
+  - src/agent/state.py
+  - src/agent/subgraphs/__init__.py
+  - src/agent/subgraphs/citation_verifier.py
+  - tests/test_001_foundation.py
+  - tests/test_004_citation_verifier.py
+  - crispy-docs/projects/001-langgraph-week6-labs/features/004-citation-verifier-subgraph/spec.md
+  - crispy-docs/projects/001-langgraph-week6-labs/features/004-citation-verifier-subgraph/implementation-manifest.yaml
+tests_added:
+  - tests/test_004_citation_verifier.py
+tests_passing:
+  count: 33
+  suites:
+    - uv run pytest tests/test_004_citation_verifier.py -v
+    - uv run pytest -q
+verification:
+  uv_sync:
+    command: uv sync
+    exit_code: 0
+  subgraph_nodes:
+    command: >-
+      uv run python -c "from agent.subgraphs.citation_verifier import citation_verifier;
+      nodes = list(citation_verifier.get_graph().nodes); print('subgraph nodes:', nodes)"
+    exit_code: 0
+    observed_nodes:
+      - __start__
+      - extract_claims
+      - check_alignment
+      - emit_verdict
+      - __end__
+  calculator_smoke:
+    command: >-
+      uv run python -c "from agent import build_graph, make_initial_state; from langgraph.types import Command;
+      import uuid; g = build_graph(mode='offline'); tid = 't-smoke-004-' + uuid.uuid4().hex[:6];
+      cfg = {'configurable': {'thread_id': tid}}; r1 = g.invoke(make_initial_state('What is 12*12?', tid, 'offline'), cfg);
+      print('paused, citation_verdict:', r1.get('citation_verdict')); r2 = g.invoke(Command(resume={'decision': 'approved'}), cfg);
+      print('published_path:', r2.get('published_path'))"
+    exit_code: 0
+    observed_citation_status: not_applicable
+    observed_published_path: "outbox\\answers\\t-smoke-004-210bfc.md"
+  retry_smoke:
+    command: >-
+      uv run python -c "from agent import build_graph, make_initial_state; import uuid;
+      g = build_graph(mode='offline'); tid = 't-smoke-004b-' + uuid.uuid4().hex[:6];
+      cfg = {'configurable': {'thread_id': tid}}; r1 = g.invoke(make_initial_state('FORCE_RETRY tell me about LangGraph', tid, 'offline'), cfg);
+      print('paused, attempt:', r1.get('attempt'), 'retry_log:', r1.get('retry_log'), 'citation_verdict:', r1.get('citation_verdict'))"
+    exit_code: 0
+    observed_attempt: 2
+    observed_retry_log_entries: 1
+    observed_citation_status: grounded
+  targeted_pytest:
+    command: uv run pytest tests/test_004_citation_verifier.py -v
+    exit_code: 0
+    passed_tests: 7
+  full_pytest:
+    command: uv run pytest -q
+    exit_code: 0
+    passed_tests: 33
+next_feature: 006-streamlit-review-surface
