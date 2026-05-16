@@ -1,0 +1,28 @@
+From: agent@local
+To: reviewer@local
+Subject: Published answer for t-evidence-002-retry
+Date: Sat, 16 May 2026 15:17:15 +0000
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+Thread ID: t-evidence-002-retry
+Mode: offline
+Timestamp: 2026-05-16T15:17:15.398189+00:00
+
+Question:
+FORCE_RETRY tell me about LangGraph subgraphs
+
+Answer:
+For 'FORCE_RETRY tell me about LangGraph subgraphs', the strongest evidence s=
+ays: Offline evidence packet 1 for 'FORCE_RETRY tell me about LangGraph subgr=
+aphs' with deterministic sample support. Sources: Offline search result 1, Of=
+fline search result 2.
+
+Sources:
+- Offline search result 1 (https://offline.local/search/1)
+  Snippet: Offline evidence packet 1 for 'FORCE_RETRY tell me about LangGraph=
+ subgraphs' with deterministic sample support.
+- Offline search result 2 (https://offline.local/search/2)
+  Snippet: Offline evidence packet 2 for 'FORCE_RETRY tell me about LangGraph=
+ subgraphs' with deterministic sample support.

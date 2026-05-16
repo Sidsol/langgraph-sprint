@@ -1,5 +1,38 @@
-# Implementation manifest — populated by crispy-yield after all feature phases complete
 feature: 007-evidence-and-grade-hardening
 project: 001-langgraph-week6-labs
-status: not-started
-ready: false
+status: complete
+ready: true
+summary:
+  - README.md now serves as the grader walkthrough with quick demo commands, architecture diagram, rubric crosswalk, and evidence pointers
+  - docs/architecture.md is the repo-local short architecture write-up with the canonical Mermaid, node table, routing table, retry summary, and HITL summary
+  - docs/evidence/ now contains four committed canonical runs plus regeneration commands, and pytest asserts the bundle stays present
+files:
+  edited:
+    - README.md
+    - docs/architecture.md
+    - tests/test_graph_wiring.py
+    - crispy-docs/projects/001-langgraph-week6-labs/features/007-evidence-and-grade-hardening/spec.md
+    - crispy-docs/projects/001-langgraph-week6-labs/features/007-evidence-and-grade-hardening/implementation-manifest.yaml
+    - .gitignore
+  created:
+    - docs/evidence/01-success-calculator/README.md
+    - docs/evidence/02-retry-then-pass/README.md
+    - docs/evidence/03-hitl-reject/README.md
+    - docs/evidence/04-escalate-budget-exhausted/README.md
+    - docs/evidence/01-success-calculator/run-t-evidence-001-calc.jsonl
+    - docs/evidence/02-retry-then-pass/run-t-evidence-002-retry.jsonl
+    - docs/evidence/03-hitl-reject/run-t-evidence-003-reject.jsonl
+    - docs/evidence/04-escalate-budget-exhausted/run-t-evidence-004-escalate.jsonl
+    - docs/evidence/01-success-calculator/published-answer.md
+    - docs/evidence/01-success-calculator/published-envelope.eml
+    - docs/evidence/02-retry-then-pass/published-answer.md
+    - docs/evidence/02-retry-then-pass/published-envelope.eml
+    - tests/test_007_rubric.py
+    - scripts/regenerate_evidence.py
+verification:
+  - uv sync
+  - uv run python scripts/regenerate_evidence.py all
+  - uv run pytest -q
+  - git check-ignore -v docs/evidence/01-success-calculator/run-t-evidence-001-calc.jsonl
+  - uv run python cli.py --offline "What is 12*12?"
+next_feature: complete
