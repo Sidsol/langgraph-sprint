@@ -1,0 +1,5 @@
+# Implementation manifest — populated by crispy-yield after all feature phases complete
+feature: 007-evidence-and-grade-hardening
+project: 001-langgraph-week6-labs
+status: not-started
+ready: false

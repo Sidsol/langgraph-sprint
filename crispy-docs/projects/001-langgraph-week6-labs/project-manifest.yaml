@@ -1,4 +1,308 @@
-# Project manifest — populated by crispy-project-yield after all project phases complete
+# Project Manifest — populated by crispy-project-yield
 project: 001-langgraph-week6-labs
-status: not-started
-ready: false
+status: complete
+ready: true
+created: 2026-05-16
+blocker_count: 0
+warning_count: 0
+
+# Project folder paths
+paths:
+  project_folder: "crispy-docs/projects/001-langgraph-week6-labs"
+  repo_root: "C:/repos/langgraph-sprint"
+  features_folder: "crispy-docs/projects/001-langgraph-week6-labs/features"
+  architecture_md: "crispy-docs/projects/001-langgraph-week6-labs/architecture.md"
+  domain_research_md: "crispy-docs/projects/001-langgraph-week6-labs/domain-research.md"
+  vision_md: "crispy-docs/projects/001-langgraph-week6-labs/vision.md"
+  feature_map_md: "crispy-docs/projects/001-langgraph-week6-labs/feature-map.md"
+  roadmap_md: "crispy-docs/projects/001-langgraph-week6-labs/roadmap.md"
+
+# Inheritance contract for feature-level runs
+# When @crispy is invoked with a folder under features_folder, the feature-level
+# orchestrator MUST add these files to MUST-READ for crispy-intent and crispy-research.
+inherited_context:
+  must_read:
+    - "architecture.md"
+    - "domain-research.md"
+
+# Feature graph — copied verbatim from feature-map.md §7
+feature_graph:
+  - id: "001-stateful-runtime-foundation"
+    folder: "crispy-docs/projects/001-langgraph-week6-labs/features/001-stateful-runtime-foundation"
+    title: "Stateful runtime foundation"
+    depends_on: []
+    architecture_sections: ["§4", "§9", "§11"]
+    rubric_mapping: ["Correctness of stateful design", "Reproducibility"]
+    walking_skeleton: true
+    parallel_wave: 1
+    complexity: "medium"
+    file_touches_estimate: 9
+    estimated_slices: 4
+  - id: "002-graph-core-orchestration"
+    folder: "crispy-docs/projects/001-langgraph-week6-labs/features/002-graph-core-orchestration"
+    title: "Graph core orchestration"
+    depends_on: ["001-stateful-runtime-foundation"]
+    architecture_sections: ["§3", "§5"]
+    rubric_mapping: ["Lab 6.1", "Code organization"]
+    walking_skeleton: true
+    parallel_wave: 2
+    complexity: "medium"
+    file_touches_estimate: 10
+    estimated_slices: 6
+  - id: "003-routing-and-retry-loop"
+    folder: "crispy-docs/projects/001-langgraph-week6-labs/features/003-routing-and-retry-loop"
+    title: "Routing and retry loop"
+    depends_on: ["002-graph-core-orchestration"]
+    architecture_sections: ["§6", "§7", "§9"]
+    rubric_mapping: ["Lab 6.2", "Lab 6.3", "Quality of failure handling"]
+    walking_skeleton: true
+    parallel_wave: 3
+    complexity: "medium"
+    file_touches_estimate: 8
+    estimated_slices: 7
+  - id: "004-citation-verifier-subgraph"
+    folder: "crispy-docs/projects/001-langgraph-week6-labs/features/004-citation-verifier-subgraph"
+    title: "Citation verifier subgraph"
+    depends_on: ["002-graph-core-orchestration"]
+    architecture_sections: ["§5"]
+    rubric_mapping: ["Lab 6.1", "Sub-agent integration"]
+    walking_skeleton: false
+    parallel_wave: 3
+    complexity: "low"
+    file_touches_estimate: 2
+    estimated_slices: 3
+  - id: "005-cli-hitl-publisher"
+    folder: "crispy-docs/projects/001-langgraph-week6-labs/features/005-cli-hitl-publisher"
+    title: "CLI HITL publisher"
+    depends_on: ["003-routing-and-retry-loop"]
+    architecture_sections: ["§8", "§10"]
+    rubric_mapping: ["Lab 6.4", "Clarity of HITL", "Correctness of stateful design"]
+    walking_skeleton: true
+    parallel_wave: 4
+    complexity: "medium"
+    file_touches_estimate: 8
+    estimated_slices: 6
+  - id: "006-streamlit-review-surface"
+    folder: "crispy-docs/projects/001-langgraph-week6-labs/features/006-streamlit-review-surface"
+    title: "Streamlit review surface"
+    depends_on: ["005-cli-hitl-publisher"]
+    architecture_sections: ["§8", "§10"]
+    rubric_mapping: ["Lab 6.4", "Clarity of HITL"]
+    walking_skeleton: false
+    parallel_wave: 5
+    complexity: "low"
+    file_touches_estimate: 2
+    estimated_slices: 4
+  - id: "007-evidence-and-grade-hardening"
+    folder: "crispy-docs/projects/001-langgraph-week6-labs/features/007-evidence-and-grade-hardening"
+    title: "Evidence and grade hardening"
+    depends_on: ["004-citation-verifier-subgraph", "005-cli-hitl-publisher"]
+    architecture_sections: ["§9", "§12"]
+    rubric_mapping: ["Lab 6.3", "Evidence package completeness", "Reproducibility"]
+    walking_skeleton: false
+    parallel_wave: 5
+    complexity: "medium"
+    file_touches_estimate: 8
+    estimated_slices: 5
+
+# Roadmap — copied verbatim from roadmap.md §8
+roadmap:
+  - id: "M1-foundation-contracts"
+    name: "Foundation contracts"
+    features: ["001-stateful-runtime-foundation"]
+    entry_milestones: []
+    exit_criteria:
+      - "uv sync resolves dependencies and yields a reproducible environment."
+      - "AgentState and initial_state() expose mode, retry_log, citation_verdict, human_decision, and publish fields."
+      - "Tool adapters and JSONL logging skeleton compile without graph-assembly imports."
+    rubric_artifacts_unlocked:
+      - "Stateful design baseline"
+      - "Reproducibility baseline"
+    walking_skeleton: false
+    demo_commands:
+      - "uv run python -c \"from agent.state import initial_state; import json; print(json.dumps(initial_state('demo question', 't-demo', 'offline'), default=str, indent=2))\""
+  - id: "M2-parent-graph-core"
+    name: "Parent graph core"
+    features: ["002-graph-core-orchestration"]
+    entry_milestones: ["M1-foundation-contracts"]
+    exit_criteria:
+      - "The parent graph compiles with planner, search/calculator, evaluator, and verifier-stub nodes."
+      - "Planner selects search vs calculator through structured state."
+      - "uv run pytest -k graph_wiring passes."
+    rubric_artifacts_unlocked:
+      - "Initial 3+ node baseline"
+      - "Code-organization evidence"
+    walking_skeleton: false
+    demo_commands:
+      - "uv run pytest -k graph_wiring"
+  - id: "M3-walking-skeleton"
+    name: "Walking skeleton"
+    features: ["003-routing-and-retry-loop", "005-cli-hitl-publisher"]
+    entry_milestones: ["M2-parent-graph-core"]
+    exit_criteria:
+      - "route_after_evaluator reaches retry, fallback, or escalate_to_human, and route_after_hitl gates publisher execution."
+      - "uv run python cli.py --offline \"demo question\" shows retry -> approval interrupt -> publish for one thread_id."
+      - "No publish side effect occurs before approval and retry remains bounded at max_attempts=2."
+    rubric_artifacts_unlocked:
+      - "Code implementation with conditional routing"
+      - "Execution log showing at least one retry/correction flow"
+      - "Evidence of one HITL interrupt in action"
+      - "State graph implementation (3+ nodes, conditional branch included)"
+      - "Self-correction loop evidence with retry/fallback behavior"
+    walking_skeleton: true
+    demo_commands:
+      - "uv run python cli.py --offline \"Explain a simple topic and revise once before publish\""
+      - "uv run pytest -k \"routers or e2e_offline\""
+  - id: "M4-citation-verifier"
+    name: "Citation verifier"
+    features: ["004-citation-verifier-subgraph"]
+    entry_milestones: ["M3-walking-skeleton"]
+    exit_criteria:
+      - "citation_verifier runs as a dedicated subgraph node instead of a stub."
+      - "Search-path drafts emit grounded or weak verdicts; calculator-path drafts emit not_applicable."
+      - "Parent-graph consumers keep using the same citation_verdict and confidence fields."
+    rubric_artifacts_unlocked:
+      - "Dedicated sub-agent evidence"
+      - "Additional labeled-node evidence for Lab 6.1"
+    walking_skeleton: false
+    demo_commands:
+      - "uv run python cli.py --offline \"Summarize two sourced facts about LangGraph checkpoints\""
+      - "uv run pytest -k graph_wiring"
+  - id: "M5-review-surface-evidence"
+    name: "Review surface evidence"
+    features: ["006-streamlit-review-surface"]
+    entry_milestones: ["M3-walking-skeleton"]
+    exit_criteria:
+      - "uv run streamlit run app.py lists paused runs from the same checkpoint DB used by the CLI."
+      - "Approve/reject/edit actions submit the same resume payload shape used by cli.py."
+      - "Cross-surface resume works for the same paused thread_id without alternate publish rules."
+    rubric_artifacts_unlocked:
+      - "HITL checkpoint evidence (screenshot or log)"
+      - "Supplemental Lab 6.4 clarity evidence"
+    walking_skeleton: false
+    demo_commands:
+      - "uv run streamlit run app.py"
+  - id: "M6-submission-bundle"
+    name: "Submission bundle"
+    features: ["007-evidence-and-grade-hardening"]
+    entry_milestones: ["M3-walking-skeleton", "M4-citation-verifier", "M5-review-surface-evidence"]
+    exit_criteria:
+      - "uv run pytest passes across graph wiring, routers, and offline end-to-end coverage."
+      - "README and the repo-local architecture write-up explain demos, artifact locations, and rubric mapping."
+      - "The submission package contains or can regenerate the architecture diagram, short write-up, logs, HITL evidence, and outbox artifacts."
+    rubric_artifacts_unlocked:
+      - "Architecture diagram of the graph (nodes + transitions)"
+      - "Short architecture write-up"
+      - "Final reproducibility and evidence package"
+    walking_skeleton: false
+    demo_commands:
+      - "uv run pytest"
+      - "uv run python cli.py --offline \"Generate the final grader demo artifacts\""
+
+# Review gates — copied verbatim from review-gates.yaml
+review_gates:
+  architecture:
+    status: passed
+    reviewer: spec-review+code-review (combined; env limitation)
+    mode: interactive
+    rounds: 2
+    round_1:
+      findings_count: { high: 3, medium: 5, low: 1 }
+      verdict: failed
+    round_2:
+      findings_count: { high: 0, medium: 2, low: 1 }
+      verdict: failed_pending_fixes
+    post_round_2_fixes:
+      - "§1 Mermaid: edges retargeted from subgraph internals to citation_verifier; added tool_router→fallback edge"
+      - "§10: removed leftover InMemorySaver reference; checkpointer is consistently SqliteSaver"
+      - "§4/§5/§7 Mitigation enum: dropped unused raised_threshold; reorganized into non-terminal + terminal groups consistent with max_attempts=2"
+    final_findings_count: { high: 0, medium: 0, low: 0 }
+    timestamp: 2026-05-15T22:50:00-07:00
+
+  feature_map:
+    status: passed
+    reviewer: spec-review+code-review (combined; env limitation)
+    mode: interactive
+    rounds: 1
+    round_1:
+      findings_count: { high: 1, medium: 2, low: 1 }
+      verdict: failed
+    post_round_1_fixes:
+      - "front matter: added feature_count, walking_skeleton_length, parallel_wave_count, max_wave_size, auto_split_count, complexity_warning_count metadata fields"
+      - "001-stateful-runtime-foundation: claimed src/agent/logging.py (event-writer skeleton) — moved from 003 to honor foundation-first sequencing; file_touches 8→9; architecture_sections add §9"
+      - "003-routing-and-retry-loop: released src/agent/logging.py to 001; file_touches 9→8; clarified its role is logging integration (using foundation's skeleton); architecture_sections add §9"
+      - "005-cli-hitl-publisher: claimed src/publisher/__init__.py; file_touches 7→8"
+    final_findings_count: { high: 0, medium: 0, low: 0 }
+    verification:
+      features_in_yaml: 7
+      feature_folders_on_disk: 7
+      folders_with_all_8_placeholders: 7
+      rubric_labs_addressed: 4
+      walking_skeleton_chain: ["001-stateful-runtime-foundation", "002-graph-core-orchestration", "003-routing-and-retry-loop", "005-cli-hitl-publisher"]
+      has_cycles: false
+      dag_connected: true
+    timestamp: 2026-05-15T23:42:00-07:00
+
+  roadmap:
+    status: passed
+    reviewer: spec-review+code-review (combined; env limitation)
+    mode: interactive
+    rounds: 1
+    round_1:
+      findings_count: { high: 1, medium: 4, low: 1 }
+      verdict: failed
+    post_round_1_fixes:
+      - "§1 Summary + M3 details: documented multi-feature-milestone semantics making in-milestone DAG ordering explicit (003 → 005 within M3) — addresses strict A8 reading of HIGH finding"
+      - "M1 demo command: replaced 'uv sync' (setup) with a runnable 'uv run python -c ...' that imports state and prints initial_state output, proving the milestone deliverable"
+      - "M4 entry_milestones: changed [M2] → [M3] so the cli.py-based demo has its prerequisite delivered; M4 details + §8 YAML updated"
+      - "§4 Mermaid critical path: replaced 'M2 -- unlocks --> M4' edge with 'M3 -- unlocks --> M4'"
+      - "§5 parallel-ops table: separated feature-level parallelism (code can advance after M2) from milestone-level parallelism (M4 ‖ M5 after M3)"
+      - "M6 exit criteria: enumerated all 8 required assignment artifacts with documented paths/commands"
+      - "M6 rubric_unlocked: renamed 'Week 6 submission' → 'course submission' (calendar A10 fix)"
+    final_findings_count: { high: 0, medium: 0, low: 1 }
+    final_low_finding: "§6 artifact wording slightly paraphrases the assignment for readability; deemed acceptable in interactive gate"
+    verification:
+      milestones_in_yaml: 6
+      features_covered_by_milestones: 7
+      features_double_counted: 0
+      features_uncovered: 0
+      rubric_artifacts_mapped: 8
+      walking_skeleton_milestone_present: true
+      walking_skeleton_unlocks_all_4_labs: true
+      submission_milestone_is_last: true
+      no_calendar_dates_found: true
+      has_cycles: false
+    timestamp: 2026-05-16T00:00:00-07:00
+
+# Walking skeleton sequence (the smallest chain to a gradable end-to-end agent)
+walking_skeleton:
+  features:
+    - "001-stateful-runtime-foundation"
+    - "002-graph-core-orchestration"
+    - "003-routing-and-retry-loop"
+    - "005-cli-hitl-publisher"
+  delivered_at_milestone: "M3-walking-skeleton"
+
+# Tooling pins from architecture §2 and scaffold-report
+tooling:
+  python: ">=3.11"
+  python_pinned_via_uv: "3.14"
+  dependency_manager: "uv"
+  uv_version: "0.11.14"
+  test_runner: "pytest"
+  ui_primary: "CLI"
+  ui_secondary: "Streamlit"
+  llm_provider: "OpenAI"
+  llm_default_model: "gpt-5.4"
+  search_provider: "Tavily (live) + FakeSearcher (offline)"
+  checkpointer: "SqliteSaver"
+  checkpoint_db_path: ".checkpoints/agent.sqlite"
+
+# Quality summary
+quality:
+  blocker_count: 0
+  warning_count: 0
+  feature_count: 7
+  milestone_count: 6
+  rubric_labs_covered: 4
+  rubric_artifacts_unlocked_at_submission: 8

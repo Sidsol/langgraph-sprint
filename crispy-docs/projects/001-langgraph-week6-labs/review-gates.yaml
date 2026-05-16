@@ -17,3 +17,59 @@ gates:
       - "§4/§5/§7 Mitigation enum: dropped unused raised_threshold; reorganized into non-terminal + terminal groups consistent with max_attempts=2"
     final_findings_count: { high: 0, medium: 0, low: 0 }
     timestamp: 2026-05-15T22:50:00-07:00
+
+  feature_map:
+    status: passed
+    reviewer: spec-review+code-review (combined; env limitation)
+    mode: interactive
+    rounds: 1
+    round_1:
+      findings_count: { high: 1, medium: 2, low: 1 }
+      verdict: failed
+    post_round_1_fixes:
+      - "front matter: added feature_count, walking_skeleton_length, parallel_wave_count, max_wave_size, auto_split_count, complexity_warning_count metadata fields"
+      - "001-stateful-runtime-foundation: claimed src/agent/logging.py (event-writer skeleton) — moved from 003 to honor foundation-first sequencing; file_touches 8→9; architecture_sections add §9"
+      - "003-routing-and-retry-loop: released src/agent/logging.py to 001; file_touches 9→8; clarified its role is logging integration (using foundation's skeleton); architecture_sections add §9"
+      - "005-cli-hitl-publisher: claimed src/publisher/__init__.py; file_touches 7→8"
+    final_findings_count: { high: 0, medium: 0, low: 0 }
+    verification:
+      features_in_yaml: 7
+      feature_folders_on_disk: 7
+      folders_with_all_8_placeholders: 7
+      rubric_labs_addressed: 4
+      walking_skeleton_chain: ["001-stateful-runtime-foundation", "002-graph-core-orchestration", "003-routing-and-retry-loop", "005-cli-hitl-publisher"]
+      has_cycles: false
+      dag_connected: true
+    timestamp: 2026-05-15T23:42:00-07:00
+
+  roadmap:
+    status: passed
+    reviewer: spec-review+code-review (combined; env limitation)
+    mode: interactive
+    rounds: 1
+    round_1:
+      findings_count: { high: 1, medium: 4, low: 1 }
+      verdict: failed
+    post_round_1_fixes:
+      - "§1 Summary + M3 details: documented multi-feature-milestone semantics making in-milestone DAG ordering explicit (003 → 005 within M3) — addresses strict A8 reading of HIGH finding"
+      - "M1 demo command: replaced 'uv sync' (setup) with a runnable 'uv run python -c ...' that imports state and prints initial_state output, proving the milestone deliverable"
+      - "M4 entry_milestones: changed [M2] → [M3] so the cli.py-based demo has its prerequisite delivered; M4 details + §8 YAML updated"
+      - "§4 Mermaid critical path: replaced 'M2 -- unlocks --> M4' edge with 'M3 -- unlocks --> M4'"
+      - "§5 parallel-ops table: separated feature-level parallelism (code can advance after M2) from milestone-level parallelism (M4 ‖ M5 after M3)"
+      - "M6 exit criteria: enumerated all 8 required assignment artifacts with documented paths/commands"
+      - "M6 rubric_unlocked: renamed 'Week 6 submission' → 'course submission' (calendar A10 fix)"
+    final_findings_count: { high: 0, medium: 0, low: 1 }
+    final_low_finding: "§6 artifact wording slightly paraphrases the assignment for readability; deemed acceptable in interactive gate"
+    verification:
+      milestones_in_yaml: 6
+      features_covered_by_milestones: 7
+      features_double_counted: 0
+      features_uncovered: 0
+      rubric_artifacts_mapped: 8
+      walking_skeleton_milestone_present: true
+      walking_skeleton_unlocks_all_4_labs: true
+      submission_milestone_is_last: true
+      no_calendar_dates_found: true
+      has_cycles: false
+    timestamp: 2026-05-16T00:00:00-07:00
+

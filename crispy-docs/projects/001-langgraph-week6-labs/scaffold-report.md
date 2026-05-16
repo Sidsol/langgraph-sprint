@@ -3,6 +3,15 @@ project: 001-langgraph-week6-labs
 document: scaffold-report
 status: complete
 created: 2026-05-15
+uv_sync_ok: true
+import_smoke_ok: true
+pytest_collect_ok: true
+repos_initialized: 1
+repos_skipped: 0
+files_created: 39
+deps_added_runtime: 11
+deps_added_dev: 1
+python_pinned: "3.14"
 ---
 
 # Scaffold Report: langgraph-week6-labs
