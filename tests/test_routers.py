@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from agent import make_initial_state
 from agent import logging as agent_logging
+from agent import make_initial_state
 from agent.routers import route_after_evaluator, route_after_hitl, route_planner_output
 
 
@@ -24,13 +24,13 @@ def test_route_planner_output_returns_expected_branch(isolated_logs) -> None:
     assert route_planner_output(_state(selected_tool=None)) == "fallback"
 
 
-def test_route_after_evaluator_returns_end_provisional_on_pass(isolated_logs) -> None:
+def test_route_after_evaluator_returns_hitl_gate_on_pass(isolated_logs) -> None:
     state = _state(
         evaluator_verdict={"status": "pass", "score": 0.9, "reason": "publishable"},
         unsafe_to_publish=False,
     )
 
-    assert route_after_evaluator(state) == "END_PROVISIONAL"
+    assert route_after_evaluator(state) == "hitl_gate"
 
 
 def test_route_after_evaluator_returns_planner_on_retry(isolated_logs) -> None:

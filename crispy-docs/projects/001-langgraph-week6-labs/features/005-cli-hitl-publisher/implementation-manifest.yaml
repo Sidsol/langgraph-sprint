@@ -1,5 +1,33 @@
-# Implementation manifest — populated by crispy-yield after all feature phases complete
 feature: 005-cli-hitl-publisher
 project: 001-langgraph-week6-labs
-status: not-started
-ready: false
+status: complete
+ready: true
+summary:
+  - graph compilation now uses a file-backed SqliteSaver with WAL mode and HITL/publisher routing
+  - cli.py is the canonical rich-based HITL surface for approval and escalation interrupts
+  - publisher writes atomic markdown and .eml artifacts and no-ops on re-entry once published
+files:
+  edited:
+    - cli.py
+    - src/agent/__init__.py
+    - src/agent/graph.py
+    - src/agent/nodes/__init__.py
+    - src/agent/routers.py
+    - src/publisher/__init__.py
+    - src/publisher/publisher.py
+    - tests/conftest.py
+    - tests/test_e2e_offline.py
+    - tests/test_graph_wiring.py
+    - tests/test_routers.py
+    - crispy-docs/projects/001-langgraph-week6-labs/features/005-cli-hitl-publisher/spec.md
+    - crispy-docs/projects/001-langgraph-week6-labs/features/005-cli-hitl-publisher/implementation-manifest.yaml
+  created:
+    - src/agent/nodes/hitl_gate.py
+    - src/agent/nodes/publisher.py
+verification:
+  - uv sync
+  - sqlite build_graph import smoke
+  - pause-then-publish interrupt smoke
+  - uv run pytest tests/test_e2e_offline.py -v
+  - uv run pytest -q
+next_feature: 004-citation-verifier-subgraph

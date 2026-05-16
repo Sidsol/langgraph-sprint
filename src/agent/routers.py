@@ -6,7 +6,7 @@ from agent.logging import EVENT_BRANCH_DECISION, write_event
 from agent.state import AgentState
 
 PlannerRoute = Literal["search_tool", "calculator_tool", "fallback"]
-EvaluatorRoute = Literal["END_PROVISIONAL", "planner", "fallback", "escalate_to_human"]
+EvaluatorRoute = Literal["hitl_gate", "planner", "fallback", "escalate_to_human"]
 HitlRoute = Literal["publisher", "END"]
 
 
@@ -35,7 +35,7 @@ def route_after_evaluator(state: AgentState) -> EvaluatorRoute:
     verdict_status = verdict["status"]
 
     if verdict_status == "pass" and not state["unsafe_to_publish"]:
-        branch: EvaluatorRoute = "END_PROVISIONAL"
+        branch: EvaluatorRoute = "hitl_gate"
     elif verdict_status == "retry" and state["attempt"] < state["max_attempts"]:
         branch = "planner"
     elif (verdict_status == "escalate" or state["attempt"] >= state["max_attempts"]) and state["unsafe_to_publish"]:

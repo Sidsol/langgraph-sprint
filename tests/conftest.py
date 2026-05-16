@@ -1,7 +1,23 @@
-"""Offline graph fixture placeholder for deterministic tests.
+from __future__ import annotations
 
-Reference: crispy-docs/projects/001-langgraph-week6-labs/architecture.md §12
-Implementation deferred to feature-level CRISPY runs.
-"""
+import importlib
+from pathlib import Path
 
-# TODO: implement per architecture §12
+import pytest
+
+from agent import build_graph
+
+
+@pytest.fixture
+def offline_graph(tmp_path: Path):
+    db_path = tmp_path / ".checkpoints" / "agent.sqlite"
+    graph = build_graph(mode="offline", db_path=str(db_path))
+    return graph, db_path
+
+
+@pytest.fixture
+def temp_outbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    outbox_root = tmp_path / "outbox"
+    publisher_module = importlib.import_module("publisher.publisher")
+    monkeypatch.setattr(publisher_module, "OUTBOX_ROOT", outbox_root)
+    return outbox_root

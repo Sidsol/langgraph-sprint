@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any, get_args
 from uuid import uuid4
 
 import pytest
 
-from agent import build_graph, make_initial_state
+from agent import make_initial_state, resume_pause
 from agent import logging as agent_logging
+from agent.nodes.publisher import publisher
 from agent.state import Mitigation
 
 
@@ -26,11 +28,10 @@ def thread_id_factory():
     return factory
 
 
-def _invoke_offline(question: str, thread_id: str) -> tuple[Any, dict[str, Any], dict[str, Any]]:
-    graph = build_graph(mode="offline")
+def _invoke_offline(graph: Any, question: str, thread_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
     config = {"configurable": {"thread_id": thread_id}}
     result = graph.invoke(make_initial_state(question, thread_id, "offline"), config)
-    return graph, config, result
+    return config, result
 
 
 def _extract_interrupt_payload(graph: Any, config: dict[str, Any], result: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -49,31 +50,41 @@ def _extract_interrupt_payload(graph: Any, config: dict[str, Any], result: dict[
     return result, {}
 
 
-def test_offline_pass_through(isolated_logs, thread_id_factory) -> None:
+def _read_events(log_dir: Path, thread_id: str) -> list[dict[str, Any]]:
+    log_path = log_dir / f"run-{thread_id}.jsonl"
+    return [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines()]
+
+
+def test_offline_pass_through(offline_graph, isolated_logs, thread_id_factory) -> None:
+    graph, _ = offline_graph
     thread_id = thread_id_factory("pass")
-    _, _, result = _invoke_offline("What is 2+3?", thread_id)
+    config, result = _invoke_offline(graph, "What is 2+3?", thread_id)
+    state, payload = _extract_interrupt_payload(graph, config, result)
 
-    assert "__interrupt__" not in result
-    assert result["draft_answer"] == "2+3 = 5"
-    assert result["selected_tool"] == "calculator"
-    assert result["attempt"] == 1
-    assert result["retry_log"] == []
-    assert result["decision"] == "publish"
+    assert payload["kind"] == "approval"
+    assert state["draft_answer"] == "2+3 = 5"
+    assert state["selected_tool"] == "calculator"
+    assert state["attempt"] == 1
+    assert state["retry_log"] == []
+    assert state["decision"] == "publish"
 
 
-def test_offline_retry_then_pass(isolated_logs, thread_id_factory) -> None:
+def test_offline_retry_then_pass(offline_graph, isolated_logs, thread_id_factory) -> None:
+    graph, _ = offline_graph
     thread_id = thread_id_factory("retry")
-    _, _, result = _invoke_offline("FORCE_RETRY tell me about LangGraph", thread_id)
+    config, result = _invoke_offline(graph, "FORCE_RETRY tell me about LangGraph", thread_id)
+    state, payload = _extract_interrupt_payload(graph, config, result)
 
-    assert "__interrupt__" not in result
-    assert result["attempt"] == 2
-    assert len(result["retry_log"]) == 1
-    assert result["retry_log"][0]["mitigation"] in {"revised_query", "switched_tool", "added_context"}
+    assert payload["kind"] == "approval"
+    assert state["attempt"] == 2
+    assert len(state["retry_log"]) == 1
+    assert state["retry_log"][0]["mitigation"] in {"revised_query", "switched_tool", "added_context"}
 
 
-def test_offline_escalate_after_budget_exhausted(isolated_logs, thread_id_factory) -> None:
+def test_offline_escalate_after_budget_exhausted(offline_graph, isolated_logs, thread_id_factory) -> None:
+    graph, _ = offline_graph
     thread_id = thread_id_factory("escalate")
-    graph, config, result = _invoke_offline("FORCE_WEAK tell me about LangGraph", thread_id)
+    config, result = _invoke_offline(graph, "FORCE_WEAK tell me about LangGraph", thread_id)
     state, payload = _extract_interrupt_payload(graph, config, result)
 
     assert payload["kind"] == "escalation"
@@ -81,13 +92,12 @@ def test_offline_escalate_after_budget_exhausted(isolated_logs, thread_id_factor
     assert state["retry_log"][-1]["mitigation"] == "escalated_to_human"
 
 
-def test_jsonl_retry_event_has_mitigation(isolated_logs, thread_id_factory) -> None:
+def test_jsonl_retry_event_has_mitigation(offline_graph, isolated_logs, thread_id_factory) -> None:
+    graph, _ = offline_graph
     thread_id = thread_id_factory("retry-log")
-    _invoke_offline("FORCE_RETRY tell me about LangGraph", thread_id)
+    _invoke_offline(graph, "FORCE_RETRY tell me about LangGraph", thread_id)
 
-    log_path = isolated_logs / f"run-{thread_id}.jsonl"
-    events = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines()]
-    retry_events = [event for event in events if event["event"] == agent_logging.EVENT_RETRY]
+    retry_events = [event for event in _read_events(isolated_logs, thread_id) if event["event"] == agent_logging.EVENT_RETRY]
     mitigation_values = set(get_args(Mitigation))
 
     assert retry_events
@@ -97,3 +107,74 @@ def test_jsonl_retry_event_has_mitigation(isolated_logs, thread_id_factory) -> N
         and event["mitigation"] in mitigation_values
         for event in retry_events
     )
+
+
+def test_offline_approve_path_publishes(offline_graph, temp_outbox, isolated_logs, thread_id_factory) -> None:
+    graph, _ = offline_graph
+    thread_id = thread_id_factory("approve")
+    config, result = _invoke_offline(graph, "What is 12*12?", thread_id)
+    _, payload = _extract_interrupt_payload(graph, config, result)
+    final_state = resume_pause(graph, thread_id, "approved")
+    answer_path = temp_outbox / "answers" / f"{thread_id}.md"
+
+    assert payload["kind"] == "approval"
+    assert final_state["published_path"] is not None
+    assert answer_path.exists()
+
+
+def test_offline_reject_path_no_publish(offline_graph, temp_outbox, isolated_logs, thread_id_factory) -> None:
+    graph, _ = offline_graph
+    thread_id = thread_id_factory("reject")
+    _invoke_offline(graph, "What is 12*12?", thread_id)
+    final_state = resume_pause(graph, thread_id, "rejected")
+    answer_path = temp_outbox / "answers" / f"{thread_id}.md"
+
+    assert final_state["published_path"] is None
+    assert not answer_path.exists()
+
+
+def test_offline_edit_path_publishes_edited_text(offline_graph, temp_outbox, isolated_logs, thread_id_factory) -> None:
+    graph, _ = offline_graph
+    thread_id = thread_id_factory("edit")
+    _invoke_offline(graph, "What is 12*12?", thread_id)
+    final_state = resume_pause(graph, thread_id, "edited", edited_text="My edit")
+    answer_path = temp_outbox / "answers" / f"{thread_id}.md"
+
+    assert final_state["published_path"] is not None
+    assert answer_path.exists()
+    assert "My edit" in answer_path.read_text(encoding="utf-8")
+
+
+def test_publisher_dedupe_guard_noop_on_reentry(temp_outbox, isolated_logs, capsys, thread_id_factory) -> None:
+    thread_id = thread_id_factory("publisher")
+    state = make_initial_state("What is 12*12?", thread_id, "offline")
+    state.update({"attempt": 1, "draft_answer": "12*12 = 144", "decision": "publish"})
+
+    first_result = publisher(state)
+    first_capture = capsys.readouterr()
+    answer_path = temp_outbox / "answers" / f"{thread_id}.md"
+    sent_path = temp_outbox / "sent" / f"{thread_id}.eml"
+
+    second_state = {**state, **first_result}
+    second_result = publisher(second_state)
+    second_capture = capsys.readouterr()
+
+    assert first_result["published_path"] is not None
+    assert answer_path.exists()
+    assert sent_path.exists()
+    assert first_capture.out
+    assert second_result == {}
+    assert second_capture.out == ""
+    assert len(list((temp_outbox / "answers").glob("*.md"))) == 1
+    assert len(list((temp_outbox / "sent").glob("*.eml"))) == 1
+
+
+def test_hitl_logs_emitted_and_resumed(offline_graph, temp_outbox, isolated_logs, thread_id_factory) -> None:
+    graph, _ = offline_graph
+    thread_id = thread_id_factory("hitl-log")
+    _invoke_offline(graph, "What is 12*12?", thread_id)
+    resume_pause(graph, thread_id, "approved")
+    events = _read_events(isolated_logs, thread_id)
+
+    assert any(event["node"] == "hitl_gate" and event["event"] == agent_logging.EVENT_INTERRUPT_EMITTED for event in events)
+    assert any(event["node"] == "hitl_gate" and event["event"] == agent_logging.EVENT_INTERRUPT_RESUMED for event in events)
