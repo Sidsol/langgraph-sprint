@@ -1,0 +1,24 @@
+[project]
+name = "langgraph-week6-labs"
+version = "0.1.0"
+description = "Week 6 LangGraph Research/QA agent with routing, retries, and HITL publishing."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "langchain-core>=0.3,<0.4",
+    "langchain-openai>=0.3,<0.4",
+    "langgraph>=0.4,<0.5",
+    "langgraph-checkpoint-sqlite>=2,<3",
+    "openai>=1,<2",
+    "pydantic>=2,<3",
+    "python-dotenv>=1,<2",
+    "rich>=13,<14",
+    "streamlit>=1,<2",
+    "tavily-python>=0.5,<0.6",
+    "typing-extensions>=4,<5",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8,<9",
+]

@@ -1,0 +1,19 @@
+# Review gates — populated by crispy-project orchestrator after spec-review + code-review gates
+gates:
+  architecture:
+    status: passed
+    reviewer: spec-review+code-review (combined; env limitation)
+    mode: interactive
+    rounds: 2
+    round_1:
+      findings_count: { high: 3, medium: 5, low: 1 }
+      verdict: failed
+    round_2:
+      findings_count: { high: 0, medium: 2, low: 1 }
+      verdict: failed_pending_fixes
+    post_round_2_fixes:
+      - "§1 Mermaid: edges retargeted from subgraph internals to citation_verifier; added tool_router→fallback edge"
+      - "§10: removed leftover InMemorySaver reference; checkpointer is consistently SqliteSaver"
+      - "§4/§5/§7 Mitigation enum: dropped unused raised_threshold; reorganized into non-terminal + terminal groups consistent with max_attempts=2"
+    final_findings_count: { high: 0, medium: 0, low: 0 }
+    timestamp: 2026-05-15T22:50:00-07:00
