@@ -440,3 +440,6 @@ roadmap:
       - "uv run pytest"
       - "uv run python cli.py --offline \"Generate the final grader demo artifacts\""
 ```
+
+## 9. Post-M6 enhancements
+Feature `008-deep-research-mode` landed after the original roadmap reached `M6-submission-bundle`. It is treated as a focused enhancement wave: keep the existing milestone order intact, add deep multi-query search and structured publishing behind the search path, and verify that the original 45-test baseline still passes unchanged.

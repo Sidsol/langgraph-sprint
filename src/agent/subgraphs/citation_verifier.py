@@ -11,6 +11,7 @@ from langgraph.types import RetryPolicy
 from agent.logging import EVENT_NODE_ENTER, EVENT_NODE_EXIT, write_event
 from agent.state import AgentState, CitationVerdict
 from tools import make_chat
+from tools.searcher import domain_of
 
 _FORCE_WEAK_RE = re.compile(r"FORCE_WEAK", re.IGNORECASE)
 _FORCE_RETRY_RE = re.compile(r"FORCE_RETRY", re.IGNORECASE)
@@ -48,6 +49,7 @@ class CitationVerifierOutput(TypedDict):
     citation_verdict: CitationVerdict
     confidence: float
     _verifier_claims: list[str] | None
+    _verifier_claim_citations: list[list[int]] | None
     _verifier_scores: list[float] | None
     _verifier_notes: list[str] | None
 
@@ -208,11 +210,72 @@ def _forced_verdict(state: AgentState) -> CitationVerdict | None:
 
 
 
+def _research_key_facts(state: AgentState) -> list[dict[str, object]]:
+    report = state.get("research_report")
+    if not report:
+        return []
+    return [
+        fact
+        for fact in report.get("key_facts", [])
+        if isinstance(fact, dict) and _normalize_whitespace(str(fact.get("claim") or ""))
+    ]
+
+
+
+def _score_key_fact_alignment(
+    claim: str,
+    cited_indices: list[int],
+    *,
+    synthesized: bool,
+    sources: list[dict[str, str]],
+) -> tuple[float, str]:
+    if synthesized:
+        return 0.0, "synthesized claim is unsupported"
+
+    unique_indices: list[int] = []
+    for index in cited_indices:
+        if index not in unique_indices:
+            unique_indices.append(index)
+
+    if not unique_indices:
+        return 0.0, "supported by 0 cited source(s)"
+    if any(index < 0 or index >= len(sources) for index in unique_indices):
+        return 0.0, "contains invalid cited source index"
+
+    claim_words = _tokenize(claim)
+    cited_sources = [sources[index] for index in unique_indices]
+    cited_words = _tokenize(" ".join(source["snippet"] for source in cited_sources))
+    score = 1.0 if claim_words & cited_words else 0.5
+
+    domains = {domain_of(source["url"]) for source in cited_sources if domain_of(source["url"])}
+    if len(domains) >= 2:
+        score = min(1.0, round(score * 1.15, 4))
+
+    return score, f"checked against {len(unique_indices)} cited source(s)"
+
+
+
+def _blind_synthesis_detected(state: AgentState) -> bool:
+    for fact in _research_key_facts(state):
+        if bool(fact.get("synthesized")) and not list(fact.get("citations") or []):
+            return True
+    return False
+
+
+
 def extract_claims(state: AgentState) -> dict[str, object]:
     node_name = "citation_verifier.extract_claims"
-    _log_enter(state, node_name, state_diff={"draft_answer": bool(state["draft_answer"])})
+    key_facts = _research_key_facts(state)
+    _log_enter(
+        state,
+        node_name,
+        state_diff={"draft_answer": bool(state["draft_answer"]), "key_facts": len(key_facts)},
+    )
 
-    if state["mode"] == "live":
+    if key_facts:
+        claims = [_normalize_whitespace(str(fact.get("claim") or "")) for fact in key_facts]
+        claim_citations = [list(fact.get("citations") or []) for fact in key_facts]
+    elif state["mode"] == "live":
         prompt = (
             "Extract the atomic factual claims from the draft answer below. "
             "Return JSON only as an array of strings.\n\n"
@@ -224,10 +287,12 @@ def extract_claims(state: AgentState) -> dict[str, object]:
             max_tokens=256,
         )
         claims = _parse_claim_list(raw) or _split_claims_offline(state["draft_answer"])
+        claim_citations = None
     else:
         claims = _split_claims_offline(state["draft_answer"])
+        claim_citations = None
 
-    update = {"_verifier_claims": claims}
+    update = {"_verifier_claims": claims, "_verifier_claim_citations": claim_citations}
     _log_exit(state, node_name, state_diff={"claims": len(claims)})
     return update
 
@@ -236,9 +301,29 @@ def extract_claims(state: AgentState) -> dict[str, object]:
 def check_alignment(state: AgentState) -> dict[str, object]:
     node_name = "citation_verifier.check_alignment"
     claims = list(state["_verifier_claims"] or [])
-    _log_enter(state, node_name, state_diff={"claims": len(claims), "sources": len(state["sources"])})
+    key_facts = _research_key_facts(state)
+    using_key_facts = bool(key_facts and state.get("_verifier_claim_citations") is not None)
+    _log_enter(
+        state,
+        node_name,
+        state_diff={"claims": len(claims), "sources": len(state["sources"]), "key_facts": using_key_facts},
+    )
 
-    if state["mode"] == "live" and claims:
+    if using_key_facts:
+        claim_citations = cast(list[list[int]], state.get("_verifier_claim_citations") or [])
+        scores = []
+        notes = []
+        for index, claim in enumerate(claims):
+            fact = key_facts[index] if index < len(key_facts) else {"citations": [], "synthesized": False}
+            score, note = _score_key_fact_alignment(
+                claim,
+                claim_citations[index] if index < len(claim_citations) else [],
+                synthesized=bool(fact.get("synthesized", False)),
+                sources=state["sources"],
+            )
+            scores.append(score)
+            notes.append(note)
+    elif state["mode"] == "live" and claims:
         if not state["sources"]:
             scores = [0.0 for _ in claims]
             notes = ["supported by 0 source(s)" for _ in claims]
@@ -279,6 +364,7 @@ def emit_verdict(state: AgentState) -> dict[str, object]:
     claims = list(state["_verifier_claims"] or [])
     scores = list(state["_verifier_scores"] or [])
     notes = list(state["_verifier_notes"] or [])
+    blind_synthesis = _blind_synthesis_detected(state)
     _log_enter(
         state,
         node_name,
@@ -302,6 +388,9 @@ def emit_verdict(state: AgentState) -> dict[str, object]:
         else:
             confidence = float(fmean(scores)) if scores else 0.0
             status = "grounded" if confidence >= 0.70 else "weak"
+            if blind_synthesis:
+                status = "weak"
+                notes = [*notes, "Blind synthesis detected: at least one key fact lacked citation support."]
             verdict = {
                 "status": cast(str, status),
                 "confidence": confidence,
@@ -312,6 +401,7 @@ def emit_verdict(state: AgentState) -> dict[str, object]:
         "citation_verdict": verdict,
         "confidence": verdict["confidence"],
         "_verifier_claims": None,
+        "_verifier_claim_citations": None,
         "_verifier_scores": None,
         "_verifier_notes": None,
     }

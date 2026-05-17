@@ -1,0 +1,81 @@
+feature: 008-deep-research-mode
+project: 001-langgraph-week6-labs
+status: complete
+ready: true
+files_implemented:
+  - README.md
+  - crispy-docs/projects/001-langgraph-week6-labs/architecture.md
+  - crispy-docs/projects/001-langgraph-week6-labs/feature-map.md
+  - crispy-docs/projects/001-langgraph-week6-labs/roadmap.md
+  - docs/architecture.md
+  - docs/evidence/01-success-calculator/published-answer.md
+  - docs/evidence/01-success-calculator/published-envelope.eml
+  - docs/evidence/01-success-calculator/run-t-evidence-001-calc.jsonl
+  - docs/evidence/02-retry-then-pass/published-answer.md
+  - docs/evidence/02-retry-then-pass/published-envelope.eml
+  - docs/evidence/02-retry-then-pass/run-t-evidence-002-retry.jsonl
+  - docs/evidence/03-hitl-reject/run-t-evidence-003-reject.jsonl
+  - docs/evidence/04-escalate-budget-exhausted/run-t-evidence-004-escalate.jsonl
+  - docs/evidence/05-deep-research-compare/README.md
+  - docs/evidence/05-deep-research-compare/published-answer.md
+  - docs/evidence/05-deep-research-compare/published-envelope.eml
+  - docs/evidence/05-deep-research-compare/run-t-evidence-005-deep.jsonl
+  - scripts/regenerate_evidence.py
+  - src/agent/nodes/planner.py
+  - src/agent/nodes/publisher.py
+  - src/agent/nodes/search_tool.py
+  - src/agent/state.py
+  - src/agent/subgraphs/citation_verifier.py
+  - src/publisher/publisher.py
+  - src/tools/__init__.py
+  - src/tools/searcher.py
+  - tests/test_008_deep_research.py
+  - crispy-docs/projects/001-langgraph-week6-labs/features/008-deep-research-mode/checklist.md
+  - crispy-docs/projects/001-langgraph-week6-labs/features/008-deep-research-mode/intent.md
+  - crispy-docs/projects/001-langgraph-week6-labs/features/008-deep-research-mode/outline.md
+  - crispy-docs/projects/001-langgraph-week6-labs/features/008-deep-research-mode/plan.md
+  - crispy-docs/projects/001-langgraph-week6-labs/features/008-deep-research-mode/research.md
+  - crispy-docs/projects/001-langgraph-week6-labs/features/008-deep-research-mode/spec.md
+  - crispy-docs/projects/001-langgraph-week6-labs/features/008-deep-research-mode/tasks.md
+  - crispy-docs/projects/001-langgraph-week6-labs/features/008-deep-research-mode/implementation-manifest.yaml
+tests_added:
+  - tests/test_008_deep_research.py
+tests_passing:
+  count: 55
+  suites:
+    - uv run pytest tests/test_008_deep_research.py -v
+    - uv run pytest -q
+verification:
+  uv_sync:
+    command: uv sync
+    exit_code: 0
+  state_extensions:
+    command: uv run python -c "from agent.state import ResearchReport, KeyFact, GlossaryEntry, initial_state; s = initial_state('q','t1','offline'); assert s['research_report'] is None; assert s['research_depth'] == 'shallow'; assert s['research_plan'] == []; print('state ext ok')"
+    exit_code: 0
+  multi_search:
+    command: uv run python -c "from tools.searcher import FakeSearcher, domain_of; f = FakeSearcher(); r = f.multi_search(['q1','q2','q1']); print('multi_search dedupe count:', len(r)); print('domain_of:', domain_of('https://docs.langchain.com/some/path'))"
+    exit_code: 0
+    observed_dedupe_count: 3
+    observed_domain: docs.langchain.com
+  deep_smoke:
+    command: uv run python -c "from langgraph.types import Command; from agent import build_graph, make_initial_state; import uuid; g = build_graph(mode='offline'); tid = 't-smoke-008-' + uuid.uuid4().hex[:6]; cfg = {'configurable': {'thread_id': tid}}; r1 = g.invoke(make_initial_state('Compare LangGraph and LangChain agent abstractions', tid, 'offline'), cfg); rr = r1.get('research_report'); print('depth:', r1.get('research_depth'), 'sub_queries:', len(rr['sub_queries_run']) if rr else 0, 'key_facts:', len(rr['key_facts']) if rr else 0); r2 = g.invoke(Command(resume={'decision': 'approved'}), cfg); print('published:', r2.get('published_path'))"
+    exit_code: 0
+    observed_depth: deep
+    observed_sub_queries: 5
+    observed_key_facts: 6
+  shallow_legacy_smoke:
+    command: uv run python -c "from pathlib import Path; from langgraph.types import Command; from agent import build_graph, make_initial_state; import uuid; g = build_graph(mode='offline'); tid = 't-smoke-008-legacy-' + uuid.uuid4().hex[:6]; cfg = {'configurable': {'thread_id': tid}}; g.invoke(make_initial_state('What is 7*8?', tid, 'offline'), cfg); r2 = g.invoke(Command(resume={'decision': 'approved'}), cfg); published = Path(r2['published_path']).read_text(encoding='utf-8'); assert '7*8 = 56' in published; assert '## Direct Answer' not in published; print('legacy publish ok:', r2['published_path'])"
+    exit_code: 0
+  targeted_pytest:
+    command: uv run pytest tests/test_008_deep_research.py -v
+    exit_code: 0
+    passed_tests: 10
+  full_pytest:
+    command: uv run pytest -q
+    exit_code: 0
+    passed_tests: 55
+  check_ignore:
+    command: git check-ignore -v docs/evidence/05-deep-research-compare/run-t-evidence-005-deep.jsonl
+    exit_code: 1
+    ignored: false
+next_feature: null

@@ -24,7 +24,7 @@ uv sync
 If `uv` is not installed yet:
 
 ```powershell
-pip install uv
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 uv sync
 ```
 
@@ -45,8 +45,16 @@ Copy `.env.example` to `.env` if you want to override defaults.
 - **Streamlit panel:** `uv run streamlit run app.py` then open <http://localhost:8501>
 - **Tests:** `uv run pytest`
 
+## Deep research mode
+```powershell
+uv run python cli.py --offline "Compare LangGraph and LangChain agent abstractions"
+# then approve; observe the published markdown with Direct Answer / Key Facts / Sources sections
+```
+
+When `planner` detects a broader research prompt, it switches the search path into `deep` mode: 3–5 sub-queries run through `Searcher.multi_search(...)`, the search node emits a structured `ResearchReport`, `citation_verifier` scores per-fact cited sources, and `publisher` writes a sectioned answer with source-diversity notes.
+
 ## Architecture
-The parent graph starts at `planner`, routes to `search_tool` or `calculator_tool`, always passes through the `citation_verifier` subgraph, and lets `evaluator` choose between publish, retry, fallback, or escalation. Successful runs pause at `hitl_gate` for explicit human review, then `publisher` writes the markdown answer and mock email envelope only after approval. The canonical detailed write-up lives in [`crispy-docs/projects/001-langgraph-week6-labs/architecture.md`](crispy-docs/projects/001-langgraph-week6-labs/architecture.md); the repo-local summary lives in [`docs/architecture.md`](docs/architecture.md).
+The parent graph starts at `planner`, routes to `search_tool` or `calculator_tool`, always passes through the `citation_verifier` subgraph, and lets `evaluator` choose between publish, retry, fallback, or escalation. On search questions, `planner` also chooses `research_depth`; deep mode fans out into multiple sub-queries and ends in a structured markdown publish, while shallow mode preserves the original single-query runtime contract. The canonical detailed write-up lives in [`crispy-docs/projects/001-langgraph-week6-labs/architecture.md`](crispy-docs/projects/001-langgraph-week6-labs/architecture.md); the repo-local summary lives in [`docs/architecture.md`](docs/architecture.md).
 
 ```mermaid
 flowchart TD

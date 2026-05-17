@@ -50,6 +50,12 @@ SCENARIOS: dict[str, Scenario] = {
         question="FORCE_WEAK ungroundable claim",
         resume_payload={"decision": "acknowledged"},
     ),
+    "05-deep-research-compare": Scenario(
+        slug="05-deep-research-compare",
+        thread_id="t-evidence-005-deep",
+        question="Compare LangGraph and LangChain agent abstractions",
+        resume_payload={"decision": "approved"},
+    ),
 }
 
 

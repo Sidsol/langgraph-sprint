@@ -1,6 +1,6 @@
 from .calculator import safe_calc
 from .llm import Chat, OpenAIChat, StubChat, make_chat
-from .searcher import FakeSearcher, SearchResult, Searcher, TavilySearcher, make_searcher
+from .searcher import FakeSearcher, SearchResult, Searcher, TavilySearcher, domain_of, make_searcher
 
 __all__ = [
     "Chat",
@@ -10,6 +10,7 @@ __all__ = [
     "Searcher",
     "StubChat",
     "TavilySearcher",
+    "domain_of",
     "make_chat",
     "make_searcher",
     "safe_calc",

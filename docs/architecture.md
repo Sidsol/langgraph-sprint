@@ -36,7 +36,7 @@ flowchart TD
 | Parent node | Purpose | Architecture link |
 |---|---|---|
 | `planner` | Increment the attempt counter, produce a short plan, and choose `search` vs `calculator`. | [§5 planner](../crispy-docs/projects/001-langgraph-week6-labs/architecture.md#planner) |
-| `search_tool` | Run the search adapter, normalize sources, and draft a sourced answer. | [§5 search_tool](../crispy-docs/projects/001-langgraph-week6-labs/architecture.md#search_tool) |
+| `search_tool` | Run the search adapter, normalize sources, and draft a sourced answer or structured research report. | [§5 search_tool](../crispy-docs/projects/001-langgraph-week6-labs/architecture.md#search_tool) |
 | `calculator_tool` | Safely evaluate arithmetic and draft a deterministic answer without citations. | [§5 calculator_tool](../crispy-docs/projects/001-langgraph-week6-labs/architecture.md#calculator_tool) |
 | `citation_verifier` | Execute the nested verifier subgraph (`extract_claims -> check_alignment -> emit_verdict`) and write `citation_verdict`. | [§5 citation_verifier](../crispy-docs/projects/001-langgraph-week6-labs/architecture.md#citation_verifier) |
 | `evaluator` | Score the current draft and choose publish, retry, fallback, or escalation while owning `retry_log`. | [§5 evaluator](../crispy-docs/projects/001-langgraph-week6-labs/architecture.md#evaluator) |
@@ -44,6 +44,9 @@ flowchart TD
 | `publisher` | Write the approved markdown answer and mock email envelope exactly once per `thread_id`. | [§5 publisher](../crispy-docs/projects/001-langgraph-week6-labs/architecture.md#publisher) |
 | `fallback` | End with a bounded safe response when the graph should stop without manual takeover. | [§5 fallback](../crispy-docs/projects/001-langgraph-week6-labs/architecture.md#fallback) |
 | `escalate_to_human` | Emit the escalation interrupt when retry budget is exhausted and auto-publish is unsafe. | [§5 escalate_to_human](../crispy-docs/projects/001-langgraph-week6-labs/architecture.md#escalate_to_human) |
+
+## Deep research mode
+When `planner` keeps the run on the search path, it now also decides `research_depth`. `shallow` preserves the legacy single-query answer flow, while `deep` expands into 3–5 sub-queries, `search_tool` dedupes the combined results into a structured `ResearchReport`, `citation_verifier` checks each fact against its cited snippets, and `publisher` emits sectioned markdown (`Direct Answer`, `Key Facts`, `Sources`, and source-diversity notes).
 
 ## Routing rules
 

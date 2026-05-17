@@ -25,6 +25,8 @@ def publisher(state: AgentState) -> dict[str, object]:
         sources=state.get("sources", []),
         question=state.get("question", ""),
         mode=state["mode"],
+        research_report=state.get("research_report"),
+        research_depth=state.get("research_depth", "shallow"),
     )
     write_event(
         state["thread_id"],

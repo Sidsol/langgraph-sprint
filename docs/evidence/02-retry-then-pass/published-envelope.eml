@@ -1,28 +1,61 @@
 From: agent@local
 To: reviewer@local
 Subject: Published answer for t-evidence-002-retry
-Date: Sat, 16 May 2026 15:17:15 +0000
+Date: Sun, 17 May 2026 23:06:34 +0000
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 
-Thread ID: t-evidence-002-retry
-Mode: offline
-Timestamp: 2026-05-16T15:17:15.398189+00:00
+Answer to: FORCE_RETRY tell me about LangGraph subgraphs
 
-Question:
-FORCE_RETRY tell me about LangGraph subgraphs
+Direct Answer:
+For 'FORCE_RETRY tell me about LangGraph subgraphs', a deep research sweep ac=
+ross 5 sub-queries found that Offline overview evidence for 'FORCE_RETRY tell=
+ me about LangGraph subgraphs' with deterministic sample support. Related evi=
+dence also covered Offline detailed evidence for 'FORCE_RETRY tell me about L=
+angGraph subgraphs' with deterministic sample support.
 
-Answer:
-For 'FORCE_RETRY tell me about LangGraph subgraphs', the strongest evidence s=
-ays: Offline evidence packet 1 for 'FORCE_RETRY tell me about LangGraph subgr=
-aphs' with deterministic sample support. Sources: Offline search result 1, Of=
-fline search result 2.
+Key Facts:
+
+1. Source 1 mentions Offline overview evidence for 'FORCE_RET. (sources: [1];=
+ confidence: 0.80)
+2. Source 2 mentions Offline detailed evidence for 'FORCE_RET. (sources: [2];=
+ confidence: 0.80)
+3. Source 3 mentions Offline detailed evidence for 'reference. (sources: [3];=
+ confidence: 0.80)
+4. Source 4 mentions Offline detailed evidence for 'common fa. (sources: [4];=
+ confidence: 0.80)
+5. Source 5 mentions Offline detailed evidence for 'prior art. (sources: [5];=
+ confidence: 0.80)
+6. Source 6 mentions Offline detailed evidence for 'about Lan. (sources: [6];=
+ confidence: 0.80)
+
+Open Questions / Unknowns:
+
+- Source diversity limited to fake-search results.
 
 Sources:
-- Offline search result 1 (https://offline.local/search/1)
-  Snippet: Offline evidence packet 1 for 'FORCE_RETRY tell me about LangGraph=
- subgraphs' with deterministic sample support.
-- Offline search result 2 (https://offline.local/search/2)
-  Snippet: Offline evidence packet 2 for 'FORCE_RETRY tell me about LangGraph=
- subgraphs' with deterministic sample support.
+
+1. Offline search overview =E2=80=94 https://offline.local/search/overview
+2. Offline search detail: force-retry-tell-me-about-langgraph-subgraphs =E2=
+=80=94 https://offline.local/search/force-retry-tell-me-about-langgraph-subgr=
+aphs
+3. Offline search detail: reference-architectures-for-force-retry-about-langg=
+raph-subgraphs =E2=80=94 https://offline.local/search/reference-architectures=
+-for-force-retry-about-langgraph-subgraphs
+4. Offline search detail: common-failure-modes-in-force-retry-about-langgraph=
+-subgraphs =E2=80=94 https://offline.local/search/common-failure-modes-in-for=
+ce-retry-about-langgraph-subgraphs
+5. Offline search detail: prior-art-and-competing-approaches-for-force-retry-=
+about-langgraph-subgraphs =E2=80=94 https://offline.local/search/prior-art-an=
+d-competing-approaches-for-force-retry-about-langgraph-subgraphs
+6. Offline search detail: about-langgraph-subgraphs-glossary-terminology =E2=
+=80=94 https://offline.local/search/about-langgraph-subgraphs-glossary-termin=
+ology
+
+Source Diversity:
+
+- offline.local: 6
+
+thread_id: t-evidence-002-retry =C2=B7 mode: offline =C2=B7 timestamp: 2026-0=
+5-17T23:06:34.034299+00:00

@@ -425,3 +425,6 @@ feature_graph:
     file_touches_estimate: 8
     estimated_slices: 5
 ```
+
+## 8. Post-M6 enhancements
+Feature `008-deep-research-mode` was added after the original six-milestone submission plan completed. It intentionally does **not** rewrite the existing DAG; instead it layers deep search decomposition, `ResearchReport` state, structured publishing, and per-fact citation discipline onto the already-shipped search path and verifier/publisher contracts.

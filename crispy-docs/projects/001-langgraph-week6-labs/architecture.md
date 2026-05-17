@@ -251,6 +251,7 @@ Notes:
 - `retry_log` entries are structured `{attempt, reason, mitigation}` — `mitigation` is a closed `Literal` enum so logs and evaluator decisions cannot drift to ad-hoc strings. The evaluator is the **only** writer of `retry_log` entries (one entry per retry decision); other nodes never append.
 - `unsafe_to_publish` is a derived boolean **set by the evaluator** from `citation_verdict.status`, `tool_error`, and `confidence`; routers read it but do not write it, so the rule has one owner. Computed as: `unsafe_to_publish = (citation_verdict.status == "weak" and citation_verdict.confidence < 0.70) or bool(tool_error) or confidence < 0.50`.
 - `human_decision` includes `"acknowledged"` for the escalation interrupt: a human reviewer who takes over the case acknowledges (and may optionally edit), terminating the run without invoking `publisher`.
+- Feature 008 adds `research_report`, `research_depth`, and `research_plan` to the shared state so the search path can switch between legacy single-query behavior and deep multi-query synthesis without changing downstream node contracts. `citation_verifier` also uses an internal `_verifier_claim_citations` buffer to carry per-fact cited-source indices between its subgraph steps.
 
 ## 5. Node specifications
 ### planner
@@ -276,6 +277,13 @@ Notes:
 - **Error behavior:** Structured provider failures become `tool_error`/`tool_results` entries so the evaluator can decide retry vs fallback; invalid response shape is treated as non-retryable validation failure.
 - **Retry policy:** `RetryPolicy(max_attempts=2)` in live mode, again preserving default transient-exception filtering for provider/network failures only.
 - **Idempotency:** No external side effects; duplicate execution only rewrites the latest `sources`/`draft_answer` and appends another structured result record.
+
+### search_tool — deep-research mode (added in feature 008)
+- On the search path, `planner` now chooses `research_depth` (`shallow` or `deep`) and populates `research_plan` before `search_tool` runs.
+- `search_tool` always calls `Searcher.multi_search(research_plan, max_per_query=3)`, dedupes results by URL, and stores the union back into `sources`.
+- `shallow` keeps the legacy one-query answer contract, but still materializes a minimal `ResearchReport` so downstream nodes can read a uniform structure.
+- `deep` fans out into 3–5 sub-queries, synthesizes a structured `ResearchReport` (`direct_answer`, `key_facts`, `perspectives`, `unknowns`, `glossary`, `sources_by_domain`, `sub_queries_run`), and mirrors `direct_answer` into `draft_answer` so `citation_verifier`, `evaluator`, `hitl_gate`, and `publisher` remain graph-compatible.
+- In live mode the decomposition/report synthesis steps ask the LLM for JSON; in offline mode the same flow stays deterministic by deriving sub-queries from the original question text and stubbing fact extraction from the retrieved snippets.
 
 ### calculator_tool
 - **Purpose:** Safely evaluate arithmetic questions and turn the result into a short draft answer without needing web citations.
@@ -551,6 +559,7 @@ Operational notes:
 |---|---|---|---|
 | `gpt-5.4` may not be available in the grader's OpenAI account | Medium | High | Make `OPENAI_MODEL` overridable, keep `StubChat` offline mode available, and document the override in `.env.example`. |
 | Tavily rate limits or network failures block live search | Medium | Medium | Keep `FakeSearcher` offline mode, preserve transient retry behavior, and allow deterministic offline evidence/tests. |
+| Deep-research mode in live mode multiplies API cost by N sub-queries (up to 5) | Medium | Medium | Cap `research_plan` at 5 sub-queries, keep shallow mode as the default for short factual prompts, and preserve deterministic offline demos/tests for most verification work. |
 | HITL node restart duplicates side effects | Medium | High | Keep all irreversible work after the interrupt in `publisher`; entry-guard publisher on `published_path is not None`; make file writes overwrite-by-thread-id. |
 | Infinite retry loop or hidden retry recursion | Low | High | Hard-cap attempts at `max_attempts=2`, increment only in `planner`, evaluate stop condition before launching the retry, and force `fallback`/`escalate_to_human` once the cap is reached. |
 | Checkpointer `thread_id` mismatch breaks resume | Medium | High | Derive `thread_id` once per run, print/store it immediately, and require the same value for every `Command(resume=...)`. |
