@@ -121,15 +121,6 @@ Every router writes a `branch_decision` JSONL event so the grader can grep the l
 | `check_alignment` | Scores each claim against its cited sources | Word-overlap heuristic (Jaccard-like) on snippet text | LLM scores each (claim, sources) pair Yes/Partial/No → 1.0/0.5/0.0 with graceful per-claim fallback |
 | `emit_verdict` | Aggregates per-claim scores into a `CitationVerdict` | `confidence = mean(scores)`; `grounded` if ≥ 0.70 else `weak`; `not_applicable` when sources is empty (calculator path). Synthesized-fact override always forces `weak` regardless of mean. |
 
-### Node-by-rubric crosswalk
-
-| Week 6 lab | Nodes that satisfy it |
-|---|---|
-| **6.1** — 3+ stateful nodes | `planner`, `search_tool`, `calculator_tool`, `evaluator`, `hitl_gate`, `publisher`, `fallback`, `escalate_to_human`, plus the `citation_verifier` subgraph (which itself has 3 nodes) — well over the minimum |
-| **6.2** — conditional routing on runtime state | All three routers above; the evaluator branch is the rubric's "routes on tool output quality or confidence" requirement |
-| **6.3** — self-correction with retry | `evaluator` (writes retry log + chooses mitigation) + retry edge from `evaluator → planner` + `fallback` and `escalate_to_human` terminals |
-| **6.4** — HITL before high-impact action | `hitl_gate` (approval interrupt) is placed **strictly before** `publisher` (the high-impact node); `escalate_to_human` is the second interrupt for retry-exhausted cases |
-| **Sub-agent integration** | `citation_verifier` as a labeled subgraph node in the parent graph; its internal 3-node workflow demonstrates nested orchestration without changing the parent's state contract |
 
 ## Project structure
 ```text
@@ -144,6 +135,10 @@ Every router writes a `branch_decision` JSONL event so the grader can grep the l
 ├── src/            # Agent graph, nodes, subgraph, tools, and publisher
 └── tests/          # Wiring, router, end-to-end, Streamlit, and rubric-trace tests
 ```
+
+## HITL checkpoint evidence
+
+![alt text](image.png)
 
 ## CRISPY planning artifacts
 All project planning artifacts live in [`crispy-docs/projects/001-langgraph-week6-labs/`](crispy-docs/projects/001-langgraph-week6-labs/):
