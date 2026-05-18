@@ -111,9 +111,38 @@ def _build_live_report(
         f"[source {index}] {source['title']} — {source['url']}\n{source['snippet']}"
         for index, source in enumerate(sources, start=1)
     )
+
+    # Scale length expectations with research_depth — shallow questions want concise answers,
+    # deep questions want a thorough synthesis with paragraph structure.
+    if research_depth == "deep":
+        answer_length_rule = (
+            "3-6 well-developed paragraphs (target 300-600 words). Use blank lines between paragraphs (\\n\\n). "
+            "Organise the answer into a logical flow: (a) a 1-2 sentence direct response, (b) the core "
+            "mechanisms or reasons backed by sources, (c) important nuances, tradeoffs, or competing "
+            "considerations, (d) historical context or examples if relevant, and (e) practical implications."
+        )
+        key_facts_rule = "5-7 distinct claims"
+        glossary_rule = "up to 8 domain terms"
+        perspectives_rule = "up to 4 strings"
+        unknowns_rule = "up to 4 explicit limitations or gaps"
+        example_direct_answer = (
+            "<3-6 paragraphs of substantive synthesis (300-600 words) with [source N] citations inline. "
+            "Use \\n\\n between paragraphs. Cover mechanisms, nuances, examples, and implications.>"
+        )
+    else:
+        answer_length_rule = (
+            "2-4 substantive sentences directly addressing the question. "
+            "Synthesise across sources. Cite inline as [source N]."
+        )
+        key_facts_rule = "3-5 distinct claims"
+        glossary_rule = "up to 5 domain terms"
+        perspectives_rule = "up to 2 strings"
+        unknowns_rule = "up to 2 explicit limitations or gaps"
+        example_direct_answer = "<2-4 sentences synthesising the answer, citing [source N] inline>"
+
     schema_example = (
         '{\n'
-        '  "direct_answer": "<2-4 sentences synthesising the answer, citing [source N] inline>",\n'
+        f'  "direct_answer": "{example_direct_answer}",\n'
         '  "key_facts": [\n'
         '    {"claim": "<one factual sentence>", "citations": ["[source 1]", "[source 3]"], "confidence": 0.85, "synthesized": false},\n'
         '    {"claim": "<another fact>", "citations": ["[source 2]"], "confidence": 0.7, "synthesized": false}\n'
@@ -128,18 +157,18 @@ def _build_live_report(
         "Return ONLY a single JSON object matching this schema (no prose, no markdown fences):\n\n"
         f"{schema_example}\n\n"
         "Rules:\n"
-        "- direct_answer: 2-4 substantive sentences directly addressing the question. Synthesise across sources. Cite inline as [source N].\n"
-        "- key_facts: 4-6 distinct claims. Each claim is one sentence. Each citations entry is a list of '[source N]' markers (use only source indices that actually support the claim).\n"
+        f"- direct_answer: {answer_length_rule}\n"
+        f"- key_facts: {key_facts_rule}. Each claim is one sentence. Each citations entry is a list of '[source N]' markers (use only source indices that actually support the claim).\n"
         "- Mark synthesized=true ONLY for claims that are background knowledge not directly supported by any cited source.\n"
-        "- perspectives: up to 3 strings, only if sources actually disagree.\n"
-        "- unknowns: up to 3 explicit limitations or gaps in the evidence.\n"
-        "- glossary: up to 5 domain terms that appear in the answer; definitions must be grounded in sources.\n"
+        f"- perspectives: {perspectives_rule}, only if sources actually disagree.\n"
+        f"- unknowns: {unknowns_rule} in the evidence.\n"
+        f"- glossary: {glossary_rule} that appear in the answer; definitions must be grounded in sources.\n"
         "- Confidence values are floats in [0.0, 1.0].\n\n"
         f"Question: {question}\n"
         f"Research depth: {research_depth}\n"
         f"Sub-queries run: {json.dumps(research_plan)}\n\n"
         f"Sources ({len(sources)} total):\n{numbered_sources}\n\n"
-        "Return ONLY the JSON object."
+        "Return ONLY the JSON object. JSON strings must use \\n\\n for paragraph breaks within direct_answer."
     )
 
     # Stage 1 — LLM call
@@ -148,7 +177,7 @@ def _build_live_report(
         raw = make_chat("live").complete(
             prompt,
             system="You synthesise grounded research reports. Respond with a single JSON object only — no prose, no markdown fences.",
-            max_tokens=3500,
+            max_tokens=6000 if research_depth == "deep" else 3000,
             response_format={"type": "json_object"},
         )
     except Exception as exc:
@@ -211,7 +240,7 @@ def _build_live_report(
         return None
 
     key_facts: list[KeyFact] = []
-    for item in key_facts_payload[:6]:
+    for item in key_facts_payload[:7]:
         if not isinstance(item, dict):
             continue
         claim = str(item.get("claim") or "").strip()
