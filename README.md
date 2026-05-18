@@ -60,29 +60,29 @@ The parent graph starts at `planner`, routes to `search_tool` or `calculator_too
 flowchart TD
     START([START]) --> planner[planner]
     planner --> tool_router{tool_router}
-    tool_router -->|selected_tool == "search"| search_tool[search_tool]
-    tool_router -->|selected_tool == "calculator"| calculator_tool[calculator_tool]
-    tool_router -->|invalid selection| fallback[fallback]
+    tool_router -->|search| search_tool[search_tool]
+    tool_router -->|calculator| calculator_tool[calculator_tool]
+    tool_router -->|invalid| fallback[fallback]
 
-    subgraph citation_verifier["citation_verifier (subgraph node)"]
+    subgraph citation_verifier_sg ["citation_verifier subgraph"]
         extract_claims[extract_claims] --> check_alignment[check_alignment] --> emit_verdict[emit_verdict]
     end
 
-    search_tool -->|always| citation_verifier
-    calculator_tool -->|always| citation_verifier
-    citation_verifier -->|always| evaluator[evaluator]
+    search_tool --> citation_verifier_sg
+    calculator_tool --> citation_verifier_sg
+    citation_verifier_sg --> evaluator[evaluator]
 
-    evaluator -->|decision == "publish"| hitl_gate[hitl_gate / interrupt()]
-    evaluator -->|decision == "retry" and attempt < max_attempts| planner
-    evaluator -->|decision == "fallback"| fallback
-    evaluator -->|decision == "escalate" or attempt >= max_attempts| escalate_to_human[escalate_to_human / interrupt()]
+    evaluator -->|publish| hitl_gate["hitl_gate -- interrupt"]
+    evaluator -->|retry and under budget| planner
+    evaluator -->|fallback| fallback
+    evaluator -->|escalate or over budget| escalate_to_human["escalate_to_human -- interrupt"]
 
-    hitl_gate -->|human_decision in {approved, edited}| publisher[publisher]
-    hitl_gate -->|human_decision == rejected| END([END])
+    hitl_gate -->|approved or edited| publisher[publisher]
+    hitl_gate -->|rejected| END([END])
 
-    publisher -->|publish complete| END
-    fallback -->|safe fallback returned| END
-    escalate_to_human -->|manual takeover logged| END
+    publisher --> END
+    fallback --> END
+    escalate_to_human --> END
 ```
 
 ## Node analysis
