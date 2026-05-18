@@ -183,3 +183,147 @@ def test_force_retry_still_works_with_deep_mode(offline_graph) -> None:
     assert result["research_depth"] == "deep"
     assert result["attempt"] == 2
     assert len(result["retry_log"]) == 1
+
+
+# --- Live-mode tests for the silent-fallback fix --------------------------------
+
+
+class _CannedChat:
+    """Test double for Chat. Returns a canned response and records call args."""
+
+    def __init__(self, response: str = "", *, raise_exc: Exception | None = None):
+        self.response = response
+        self.raise_exc = raise_exc
+        self.calls: list[dict[str, object]] = []
+
+    def complete(self, prompt, *, system=None, max_tokens=512, response_format=None):
+        self.calls.append(
+            {
+                "prompt_len": len(prompt),
+                "max_tokens": max_tokens,
+                "response_format": response_format,
+                "system": system,
+            }
+        )
+        if self.raise_exc is not None:
+            raise self.raise_exc
+        return self.response
+
+
+def _live_search_state(thread_id: str, question: str = "Explain X") -> dict[str, object]:
+    state = make_initial_state(question, thread_id, "live")
+    state["research_plan"] = [question, "background on X", "examples of X"]
+    state["research_depth"] = "deep"
+    state["attempt"] = 1
+    state["plan"] = "Investigate X"
+    state["selected_tool"] = "search"
+    return state
+
+
+def _patched_search_tool(monkeypatch: pytest.MonkeyPatch, chat: _CannedChat, sources_count: int = 3):
+    """Patch make_chat AND make_searcher inside search_tool to deterministic doubles.
+
+    Returns the search_tool function ready to call.
+    """
+    import sys
+    import importlib
+    # __init__.py shadows the submodule name with the function; bypass via sys.modules.
+    importlib.import_module("agent.nodes.search_tool")
+    search_tool_mod = sys.modules["agent.nodes.search_tool"]
+    from tools.searcher import FakeSearcher
+
+    monkeypatch.setattr(search_tool_mod, "make_chat", lambda mode: chat)
+    monkeypatch.setattr(search_tool_mod, "make_searcher", lambda mode: FakeSearcher())
+    return search_tool_mod.search_tool
+
+
+def test_live_report_parses_valid_json(monkeypatch: pytest.MonkeyPatch, isolated_logs: Path) -> None:
+    canned = _CannedChat(
+        response='{"direct_answer": "X is foo because bar [source 1]. It contrasts with baz [source 2].",'
+        ' "key_facts": ['
+        '{"claim": "X is foo.", "citations": ["[source 1]"], "confidence": 0.9, "synthesized": false},'
+        '{"claim": "X differs from Y.", "citations": ["[source 2]"], "confidence": 0.75, "synthesized": false},'
+        '{"claim": "X has gotcha Z.", "citations": ["[source 3]"], "confidence": 0.6, "synthesized": false}'
+        '],'
+        ' "perspectives": ["Some sources emphasise A; others emphasise B."],'
+        ' "unknowns": ["Long-term behaviour is undocumented."],'
+        ' "glossary": [{"term": "X", "definition": "the thing", "source_idx": "[source 1]"}]}'
+    )
+    tid = _thread_id("live-ok")
+    search_tool_fn = _patched_search_tool(monkeypatch, canned)
+    state = _live_search_state(tid, question="Explain X comprehensively")
+
+    update = search_tool_fn(state)
+
+    assert update["tool_error"] is None
+    report = update["research_report"]
+    assert report is not None
+    assert report["direct_answer"].startswith("X is foo because bar")
+    assert len(report["key_facts"]) == 3
+    assert report["key_facts"][0]["citations"] == [0]   # [source 1] -> idx 0
+    assert report["key_facts"][1]["citations"] == [1]
+    assert report["perspectives"] == ["Some sources emphasise A; others emphasise B."]
+    assert report["unknowns"] == ["Long-term behaviour is undocumented."]
+    assert len(report["glossary"]) == 1
+    # response_format was passed through
+    assert canned.calls[0]["response_format"] == {"type": "json_object"}
+    # No tool_error event was logged
+    log_path = isolated_logs / f"run-{tid}.jsonl"
+    if log_path.exists():
+        content = log_path.read_text()
+        assert '"event": "tool_error"' not in content
+
+
+def test_live_report_logs_on_invalid_json(monkeypatch: pytest.MonkeyPatch, isolated_logs: Path) -> None:
+    # LLM returns prose, not JSON
+    canned = _CannedChat(response="I'm sorry, I cannot produce JSON. Here's some prose instead about X...")
+    tid = _thread_id("live-bad-json")
+    search_tool_fn = _patched_search_tool(monkeypatch, canned)
+    state = _live_search_state(tid)
+
+    update = search_tool_fn(state)
+
+    # Should silently fall back to offline report (research_report is not None)
+    assert update["research_report"] is not None
+    # but the fallback reason must be in the log
+    log_path = isolated_logs / f"run-{tid}.jsonl"
+    assert log_path.exists(), "log file should exist after search_tool ran"
+    content = log_path.read_text()
+    assert '"event": "tool_error"' in content
+    assert "live_report.json_parse_failed" in content
+    assert "raw_preview" in content
+
+
+def test_live_report_logs_on_llm_exception(monkeypatch: pytest.MonkeyPatch, isolated_logs: Path) -> None:
+    canned = _CannedChat(raise_exc=RuntimeError("OpenAI chat failed: Unsupported parameter 'max_tokens'"))
+    tid = _thread_id("live-llm-err")
+    search_tool_fn = _patched_search_tool(monkeypatch, canned)
+    state = _live_search_state(tid)
+
+    update = search_tool_fn(state)
+
+    # Offline fallback still produces a report so the rest of the graph keeps working
+    assert update["research_report"] is not None
+    log_path = isolated_logs / f"run-{tid}.jsonl"
+    assert log_path.exists()
+    content = log_path.read_text()
+    assert '"event": "tool_error"' in content
+    assert "live_report.llm_call_failed" in content
+    assert "RuntimeError" in content
+
+
+def test_live_report_logs_on_missing_direct_answer(monkeypatch: pytest.MonkeyPatch, isolated_logs: Path) -> None:
+    # Valid JSON but missing required field
+    canned = _CannedChat(response='{"key_facts": [{"claim": "x", "citations": []}]}')
+    tid = _thread_id("live-bad-schema")
+    search_tool_fn = _patched_search_tool(monkeypatch, canned)
+    state = _live_search_state(tid)
+
+    update = search_tool_fn(state)
+
+    assert update["research_report"] is not None  # fell back to offline
+    log_path = isolated_logs / f"run-{tid}.jsonl"
+    assert log_path.exists()
+    content = log_path.read_text()
+    assert "live_report.schema_validation_failed" in content
+    assert "direct_answer=missing" in content

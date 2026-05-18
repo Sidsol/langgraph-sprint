@@ -85,22 +85,6 @@ flowchart TD
     escalate_to_human -->|manual takeover logged| END
 ```
 
-## How the rubric maps
-
-| Artifact name | Where it lives in this repo | Command to regenerate it |
-|---|---|---|
-| Architecture diagram of your graph (nodes + transitions) | `README.md`, `docs/architecture.md`, `crispy-docs/projects/001-langgraph-week6-labs/architecture.md` | `Get-Content .\docs\architecture.md` |
-| Code implementation with conditional routing | `src/agent/graph.py`, `src/agent/routers.py`, `tests/test_graph_wiring.py`, `tests/test_routers.py` | `uv run pytest tests\test_graph_wiring.py tests\test_routers.py -q` |
-| Execution log showing at least one retry or correction flow | `docs/evidence/02-retry-then-pass/run-t-evidence-002-retry.jsonl` | `uv run python scripts\regenerate_evidence.py 02-retry-then-pass` |
-| Evidence of one human-in-the-loop interrupt in action | `docs/evidence/01-success-calculator/run-t-evidence-001-calc.jsonl` | `uv run python scripts\regenerate_evidence.py 01-success-calculator` |
-| Short architecture write-up (node roles and routing logic) | `docs/architecture.md` | `Get-Content .\docs\architecture.md` |
-| State graph implementation (3+ nodes, conditional branch included) | `src/agent/graph.py`, `tests/test_graph_wiring.py` | `uv run pytest tests\test_graph_wiring.py -q` |
-| Self-correction loop evidence with retry/fallback behavior | `docs/evidence/02-retry-then-pass/run-t-evidence-002-retry.jsonl`, `docs/evidence/04-escalate-budget-exhausted/run-t-evidence-004-escalate.jsonl`, `tests/test_e2e_offline.py` | `uv run python scripts\regenerate_evidence.py all` |
-| Human-in-the-loop checkpoint evidence (screenshot or log) | `docs/evidence/03-hitl-reject/run-t-evidence-003-reject.jsonl`, `app.py` | `uv run python scripts\regenerate_evidence.py 03-hitl-reject` |
-
-## Generated evidence
-Committed example runs live under [`docs/evidence/`](docs/evidence/). Each scenario folder contains a short README plus the canonical JSONL log, and published scenarios also include `published-answer.md` and `published-envelope.eml`. Fresh runs always append runtime evidence to `logs/run-<thread_id>.jsonl`; refresh the committed bundle with `uv run python scripts\regenerate_evidence.py all`.
-
 ## Project structure
 ```text
 .

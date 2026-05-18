@@ -4,7 +4,7 @@ import json
 import re
 from typing import Any, cast
 
-from agent.logging import EVENT_NODE_ENTER, EVENT_NODE_EXIT, write_event
+from agent.logging import EVENT_NODE_ENTER, EVENT_NODE_EXIT, EVENT_TOOL_ERROR, write_event
 from agent.state import AgentState, GlossaryEntry, KeyFact, ResearchReport, SourceRecord, ToolCallRecord, ToolResultRecord
 from tools import make_chat, make_searcher
 from tools.searcher import domain_of
@@ -97,38 +97,117 @@ def _parse_source_idx(raw: object, source_count: int) -> int | None:
     return indices[0] if indices else None
 
 
-def _build_live_report(question: str, sources: list[SourceRecord], research_plan: list[str], research_depth: str) -> ResearchReport | None:
+def _build_live_report(
+    question: str,
+    sources: list[SourceRecord],
+    research_plan: list[str],
+    research_depth: str,
+    *,
+    thread_id: str,
+    attempt: int,
+    mode: str,
+) -> ResearchReport | None:
     numbered_sources = "\n\n".join(
         f"[source {index}] {source['title']} — {source['url']}\n{source['snippet']}"
         for index, source in enumerate(sources, start=1)
     )
+    schema_example = (
+        '{\n'
+        '  "direct_answer": "<2-4 sentences synthesising the answer, citing [source N] inline>",\n'
+        '  "key_facts": [\n'
+        '    {"claim": "<one factual sentence>", "citations": ["[source 1]", "[source 3]"], "confidence": 0.85, "synthesized": false},\n'
+        '    {"claim": "<another fact>", "citations": ["[source 2]"], "confidence": 0.7, "synthesized": false}\n'
+        '  ],\n'
+        '  "perspectives": ["<divergent viewpoint, if any>"],\n'
+        '  "unknowns": ["<explicit limitation or gap>"],\n'
+        '  "glossary": [{"term": "<term>", "definition": "<def>", "source_idx": "[source 2]"}]\n'
+        '}'
+    )
     prompt = (
-        "Produce a structured research report from the numbered sources. Return JSON only with keys "
-        "direct_answer, key_facts, perspectives, unknowns, glossary. "
-        "direct_answer must be 1-3 sentences. key_facts must be 3-6 objects with keys claim, citations, confidence, synthesized. "
-        "Use explicit '[source N]' citation markers inside the citations field. perspectives and unknowns should each contain at most 3 strings. "
-        "glossary should contain objects with keys term, definition, and source_idx (use '[source N]' or null).\n\n"
+        "You are producing a structured research report from numbered sources. "
+        "Return ONLY a single JSON object matching this schema (no prose, no markdown fences):\n\n"
+        f"{schema_example}\n\n"
+        "Rules:\n"
+        "- direct_answer: 2-4 substantive sentences directly addressing the question. Synthesise across sources. Cite inline as [source N].\n"
+        "- key_facts: 4-6 distinct claims. Each claim is one sentence. Each citations entry is a list of '[source N]' markers (use only source indices that actually support the claim).\n"
+        "- Mark synthesized=true ONLY for claims that are background knowledge not directly supported by any cited source.\n"
+        "- perspectives: up to 3 strings, only if sources actually disagree.\n"
+        "- unknowns: up to 3 explicit limitations or gaps in the evidence.\n"
+        "- glossary: up to 5 domain terms that appear in the answer; definitions must be grounded in sources.\n"
+        "- Confidence values are floats in [0.0, 1.0].\n\n"
         f"Question: {question}\n"
         f"Research depth: {research_depth}\n"
-        f"Sub-queries: {json.dumps(research_plan)}\n\n"
-        f"Sources:\n{numbered_sources}"
+        f"Sub-queries run: {json.dumps(research_plan)}\n\n"
+        f"Sources ({len(sources)} total):\n{numbered_sources}\n\n"
+        "Return ONLY the JSON object."
     )
+
+    # Stage 1 — LLM call
+    raw: str = ""
     try:
         raw = make_chat("live").complete(
             prompt,
-            system="You synthesize grounded research reports and respond with JSON only.",
-            max_tokens=900,
+            system="You synthesise grounded research reports. Respond with a single JSON object only — no prose, no markdown fences.",
+            max_tokens=3500,
+            response_format={"type": "json_object"},
         )
-        payload = json.loads(_strip_fences(raw))
-    except Exception:
+    except Exception as exc:
+        write_event(
+            thread_id,
+            attempt,
+            "search_tool",
+            EVENT_TOOL_ERROR,
+            mode,
+            error=f"live_report.llm_call_failed: {type(exc).__name__}: {str(exc)[:300]}",
+        )
         return None
 
+    raw_preview = (raw or "")[:300]
+
+    # Stage 2 — JSON parse
+    try:
+        payload = json.loads(_strip_fences(raw))
+    except Exception as exc:
+        write_event(
+            thread_id,
+            attempt,
+            "search_tool",
+            EVENT_TOOL_ERROR,
+            mode,
+            error=f"live_report.json_parse_failed: {type(exc).__name__}: {str(exc)[:200]}",
+            state_diff={"raw_preview": raw_preview, "raw_len": len(raw or "")},
+        )
+        return None
+
+    # Stage 3 — schema validation
     if not isinstance(payload, dict):
+        write_event(
+            thread_id,
+            attempt,
+            "search_tool",
+            EVENT_TOOL_ERROR,
+            mode,
+            error="live_report.schema_validation_failed: payload_not_dict",
+            state_diff={"raw_preview": raw_preview, "type": type(payload).__name__},
+        )
         return None
 
     direct_answer = str(payload.get("direct_answer") or "").strip()
     key_facts_payload = payload.get("key_facts")
     if not direct_answer or not isinstance(key_facts_payload, list):
+        write_event(
+            thread_id,
+            attempt,
+            "search_tool",
+            EVENT_TOOL_ERROR,
+            mode,
+            error=(
+                "live_report.schema_validation_failed: "
+                f"direct_answer={'present' if direct_answer else 'missing'}, "
+                f"key_facts={'list' if isinstance(key_facts_payload, list) else type(key_facts_payload).__name__}"
+            ),
+            state_diff={"raw_preview": raw_preview},
+        )
         return None
 
     key_facts: list[KeyFact] = []
@@ -152,6 +231,15 @@ def _build_live_report(question: str, sources: list[SourceRecord], research_plan
         )
 
     if not key_facts:
+        write_event(
+            thread_id,
+            attempt,
+            "search_tool",
+            EVENT_TOOL_ERROR,
+            mode,
+            error="live_report.schema_validation_failed: no_valid_key_facts",
+            state_diff={"raw_preview": raw_preview, "raw_count": len(key_facts_payload)},
+        )
         return None
 
     perspectives = [str(item).strip() for item in payload.get("perspectives", []) if str(item).strip()][:3]
@@ -209,7 +297,15 @@ def _offline_report(
 
 def _build_report(state: AgentState, sources: list[SourceRecord], research_plan: list[str], research_depth: str) -> ResearchReport:
     if state["mode"] == "live":
-        live_report = _build_live_report(state["question"], sources, research_plan, research_depth)
+        live_report = _build_live_report(
+            state["question"],
+            sources,
+            research_plan,
+            research_depth,
+            thread_id=state["thread_id"],
+            attempt=state["attempt"],
+            mode=state["mode"],
+        )
         if live_report is not None:
             return live_report
     return _offline_report(state["question"], sources, research_plan, research_depth, state["mode"])
